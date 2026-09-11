@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+reports/
+chrome-profile/
+browser.json
+.spotify-cache
+*.m4a
+*.mp3
+*.webm

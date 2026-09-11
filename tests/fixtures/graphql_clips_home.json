@@ -1,0 +1,71 @@
+{
+  "data": {
+    "xdt_api__v1__clips__home__connection_v2": {
+      "edges": [
+        {
+          "node": {
+            "media": {
+              "pk": "3456789012345678901",
+              "id": "3456789012345678901_123",
+              "code": "C_abcDEF123",
+              "media_type": 2,
+              "product_type": "clips",
+              "taken_at": 1755900000,
+              "user": {"username": "ghazal.lovers", "pk": "123"},
+              "caption": {"text": "Late night feels 🌙 #ghazal #jagjitsingh"},
+              "video_versions": [{"url": "https://scontent.cdninstagram.com/v/t66/abc.mp4?x=1", "width": 720}],
+              "image_versions2": {"candidates": [{"url": "https://scontent.cdninstagram.com/v/t51/thumb.jpg"}]},
+              "clips_metadata": {
+                "audio_type": "licensed_music",
+                "music_info": {
+                  "music_asset_info": {
+                    "title": "Tum Itna Jo Muskura Rahe Ho",
+                    "display_artist": "Jagjit Singh",
+                    "audio_cluster_id": "987654321"
+                  }
+                },
+                "original_sound_info": null
+              }
+            }
+          }
+        },
+        {
+          "node": {
+            "media": {
+              "pk": "3456789012345678902",
+              "code": "C_origAUD456",
+              "media_type": 2,
+              "product_type": "clips",
+              "taken_at": 1755901000,
+              "user": {"username": "singer.girl"},
+              "caption": {"text": "my cover of Aaj Jaane Ki Zid Na Karo ❤️"},
+              "video_versions": [{"url": "https://scontent.cdninstagram.com/v/t66/def.mp4"}],
+              "clips_metadata": {
+                "audio_type": "original_sounds",
+                "music_info": null,
+                "original_sound_info": {
+                  "original_audio_title": "Original audio",
+                  "audio_asset_id": "555",
+                  "ig_artist": {"username": "singer.girl"}
+                }
+              }
+            }
+          }
+        },
+        {
+          "node": {
+            "media": {
+              "pk": "3456789012345678903",
+              "code": "C_photoXYZ",
+              "media_type": 1,
+              "product_type": "feed",
+              "user": {"username": "someone"},
+              "image_versions2": {"candidates": [{"url": "https://x/y.jpg"}]}
+            }
+          }
+        }
+      ],
+      "page_info": {"has_next_page": true, "end_cursor": "abc"}
+    }
+  }
+}

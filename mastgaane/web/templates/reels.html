@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="filters">
+  <a href="/reels" class="{{ 'on' if not status and not watched else '' }}">all</a>
+  <a href="/reels?watched=1" class="{{ 'on' if watched else '' }}">watched only</a>
+  {% for st in ['pending','resolved','needs_review','skipped','failed'] %}<a href="/reels?status={{st}}" class="{{ 'on' if status==st else '' }}">{{st}}</a>{% endfor %}
+</div>
+{% for r in reels %}
+<div class="card">
+  <div style="display:flex;gap:12px">
+    <a target="_blank" href="{{ r.url }}">{% if r.thumb_url %}<img src="{{ r.thumb_url }}" loading="lazy" referrerpolicy="no-referrer" style="width:64px;height:114px;object-fit:cover;border-radius:6px">{% endif %}</a>
+    <div>
+      <div class="title">@{{ r.owner }} <span class="artist">{{ r.seen_at.strftime('%d %b %H:%M') }} {% if r.watched %}· watched ×{{ r.times_seen }}{% endif %}</span></div>
+      <div class="meta">
+        <span class="pill">{{ r.resolve_status }}</span>
+        {% if r.ig_song_title %}<span>IG audio: {{ r.ig_song_title }} — {{ r.ig_artist }}{% if r.is_original_audio %} (original){% endif %}</span>{% endif %}
+        {% if r.song_id and songs.get(r.song_id) %}<span>→ <b>{{ songs[r.song_id].title }}</b> — {{ songs[r.song_id].artist }}</span>{% endif %}
+      </div>
+      <div style="color:var(--dim);font-size:13px;margin-top:4px">{{ r.caption[:200] }}</div>
+      {% if r.resolve_note %}<div style="color:var(--dim);font-size:12px">{{ r.resolve_note[:160] }}</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% else %}<p style="color:var(--dim)">No reels yet.</p>{% endfor %}
+{% endblock %}

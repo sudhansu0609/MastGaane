@@ -1,0 +1,65 @@
+# Curation rules (merged over built-in defaults). Edit freely; restart the command to apply.
+
+# Only songs SUNG in these languages are kept. Hindi film songs and ghazals are hindi/urdu.
+# Add "punjabi" here if you want Punjabi songs too.
+allowed_languages:
+  - hindi
+  - urdu
+
+# film = Bollywood / Hindi film songs, ghazal, folk. Add "sufi", "classical", "devotional", "indie" to widen.
+allowed_genres:
+  - film
+  - ghazal
+  - folk
+
+always_keep_artists:
+  - Jagjit Singh
+  - Ghulam Ali
+  - Mehdi Hassan
+  - Begum Akhtar
+  - Farida Khanum
+  - Abida Parveen
+  - Nusrat Fateh Ali Khan
+  - Rahat Fateh Ali Khan
+  - Pankaj Udhas
+  - Talat Aziz
+  - Hariharan
+  - Arijit Singh
+  - Atif Aslam
+  - Papon
+  - Mohit Chauhan
+  - Lata Mangeshkar
+  - Kishore Kumar
+  - Mohammed Rafi
+  - Mukesh
+  - Asha Bhosle
+  - Shreya Ghoshal
+  - Sonu Nigam
+  - KK
+  - Udit Narayan
+
+always_skip_patterns:
+  - meme
+  - comedy
+  - funny
+  - dialogue
+  - prank
+  - roast
+  - podcast
+  - motivation
+  - gym
+  - phonk
+  - "dj "
+  - remix
+
+keep_keywords:
+  - ghazal
+  - sufi
+  - qawwali
+  - unplugged
+  - nazm
+  - shayari
+  - soulful
+  - melod
+  - bollywood
+  - lofi

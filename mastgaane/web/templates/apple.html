@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block body %}
+{% if request.query_params.get('msg') %}<div class="msg">{{ request.query_params.get('msg') }}</div>{% endif %}
+
+<div class="card" style="display:block">
+  {% if musickit %}
+  <b>MusicKit connected</b> — <code>mastgaane sync</code> adds songs straight into the "{{ settings.playlist_name }}" playlist in your library.
+  {% elif dev_token %}
+  <b>Developer token set.</b> <a href="/apple/auth" style="color:var(--acc)">Connect your Apple Music account →</a>
+  {% else %}
+  <b>Get these songs into Apple Music on your iPhone</b>
+  <ol style="margin:8px 0 0 18px; color:var(--dim); line-height:1.6">
+    <li>Open this page on the phone (same Wi-Fi): <code style="color:var(--acc)">{{ lan_url }}/apple</code> — tap a song to open it in Apple Music and use <i>+ Add to Playlist</i>.</li>
+    <li>Or import everything at once with a Shortcut (build once, run anytime):
+      <div style="margin:6px 0 0 0">
+        ① <b>Get Contents of URL</b> → <code>{{ lan_url }}/apple/import.txt</code><br>
+        ② <b>Split Text</b> → <i>New Lines</i><br>
+        ③ <b>Repeat with Each</b> → <b>Search Music</b> (Apple Music catalog, limit 1, search <i>Repeat Item</i>) → <b>Add to Playlist</b> "{{ settings.playlist_name }}"
+      </div>
+    </li>
+  </ol>
+  {% endif %}
+</div>
+
+<div class="filters">
+  <b>{{ songs|length }} approved songs</b>
+  <a href="/apple?resolve=1">↻ resolve missing links</a>
+  <a href="/apple/import.txt" target="_blank">import.txt</a>
+</div>
+
+{% for s in songs %}
+<div class="card" style="grid-template-columns:1fr auto; align-items:center">
+  <div>
+    <div class="title">{{ s.title }} <span class="artist">— {{ s.artist }}</span></div>
+    <div class="meta"><span class="pill">{{ s.language }} · {{ s.genre }}</span></div>
+  </div>
+  <div class="actions">
+    {% if s.apple_url %}
+      <a href="{{ s.apple_url }}" target="_blank"><button class="acc"> Open</button></a>
+    {% else %}
+      <a href="https://music.apple.com/in/search?term={{ (s.title ~ ' ' ~ s.artist) | urlencode }}" target="_blank"><button>search</button></a>
+    {% endif %}
+  </div>
+</div>
+{% else %}<p style="color:var(--dim)">No approved songs yet.</p>{% endfor %}
+{% endblock %}

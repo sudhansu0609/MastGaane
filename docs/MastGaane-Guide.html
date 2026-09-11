@@ -1,0 +1,239 @@
+<title>MastGaane Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martel:wght@400;700;900&family=Martel+Sans:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root {
+    --bg: #f2f0ea;
+    --bg-2: #e9e6dd;
+    --ink: #1c1f33;
+    --ink-2: #4b4f66;
+    --muted: #7b7e93;
+    --line: #d6d3c8;
+    --accent: #b0731a;
+    --accent-ink: #7a4d0b;
+    --accent-soft: #f3e3c3;
+    --ok: #2f7f62;
+    --bad: #b0443f;
+    --code-bg: #e6e3da;
+    --chip: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12152a; --bg-2: #181c35; --ink: #ece9e0; --ink-2: #bfbcb2; --muted: #8a8ca3;
+      --line: #2a2e4a; --accent: #e2a93c; --accent-ink: #f0c871; --accent-soft: #2a2640;
+      --ok: #6dc9a3; --bad: #e0756f; --code-bg: #0d1022; --chip: #1e2240;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12152a; --bg-2: #181c35; --ink: #ece9e0; --ink-2: #bfbcb2; --muted: #8a8ca3;
+    --line: #2a2e4a; --accent: #e2a93c; --accent-ink: #f0c871; --accent-soft: #2a2640;
+    --ok: #6dc9a3; --bad: #e0756f; --code-bg: #0d1022; --chip: #1e2240;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.65 "Martel Sans", "Segoe UI", system-ui, sans-serif; }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .wrap { width: 100%; max-width: 760px; margin: 0 auto; padding: 40px 24px 96px; }
+  @media (max-width: 600px) { .wrap { padding: 24px 16px 64px; } }
+  main { display: block; width: 100%; min-width: 0; }
+  nav.toc { font-size: 14px; margin-bottom: 36px; }
+  nav.toc .eyebrow { margin-bottom: 10px; }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 8px; }
+  nav.toc li a { display: inline-block; padding: 5px 11px; color: var(--ink-2); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; background: var(--chip); white-space: nowrap; }
+  nav.toc li a:hover { color: var(--accent-ink); border-color: var(--accent); }
+  .eyebrow { font: 800 11.5px/1 "Martel Sans", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); }
+  header.hero { margin-bottom: 44px; padding-bottom: 32px; border-bottom: 1px solid var(--line); }
+  header.hero h1 { font: 900 clamp(30px, 6vw, 42px)/1.12 "Martel", Georgia, serif; margin: 10px 0 14px; letter-spacing: -.01em; text-wrap: balance; }
+  header.hero h1 span { color: var(--accent); }
+  header.hero p.lede { font-size: 19px; color: var(--ink-2); margin: 0; max-width: 60ch; }
+  .status { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; background: var(--chip); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; font-size: 13.5px; font-weight: 600; }
+  .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .chip.ok i { background: var(--ok); } .chip.todo i { background: var(--accent); }
+  h2 { font: 700 28px/1.2 "Martel", Georgia, serif; margin: 56px 0 14px; text-wrap: balance; }
+  h2:first-of-type { margin-top: 0; }
+  h3 { font: 800 15px/1.3 "Martel Sans", sans-serif; margin: 30px 0 8px; letter-spacing: .02em; }
+  p { margin: 0 0 14px; }
+  ul, ol { padding-left: 22px; margin: 0 0 14px; } li { margin: 4px 0; }
+  code, pre { font-family: "JetBrains Mono", Consolas, monospace; }
+  code { font-size: .86em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin: 12px 0 18px; overflow-x: auto; font-size: 14px; line-height: 1.55; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  pre .c { color: var(--muted); }
+  .flow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 22px; }
+  @media (max-width: 520px) { .flow { grid-template-columns: 1fr; } }
+  .flow div { background: var(--bg-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 12px 10px; font-size: 14px; position: relative; }
+  .flow b { display: block; font: 800 12px/1 "Martel Sans", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); margin-bottom: 8px; }
+
+  table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: 15px; margin: 10px 0 20px; }
+  .tbl { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  th { text-align: left; font: 800 12px/1.3 "Martel Sans", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .keep { color: var(--ok); font-weight: 700; } .skip { color: var(--bad); font-weight: 700; }
+  .note { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0 20px; font-size: 15.5px; }
+  .note b { color: var(--accent-ink); }
+  .steps { counter-reset: s; list-style: none; padding: 0; }
+  .steps li { counter-increment: s; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .steps li::before { content: counter(s); font: 700 18px/1 "Martel", serif; color: var(--accent); padding-top: 3px; }
+  .steps li b { display: block; margin-bottom: 3px; }
+  .steps li p { margin: 0; color: var(--ink-2); font-size: 15.5px; }
+  .kv { margin: 8px 0 18px; font-size: 15.5px; }
+  .kv dt { color: var(--accent-ink); font: 800 12px/1.3 "Martel Sans", sans-serif; letter-spacing: .1em; text-transform: uppercase; margin-top: 14px; }
+  .kv dd { margin: 4px 0 0; }
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13.5px; }
+</style>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <div class="eyebrow">Contents</div>
+  <ol>
+    <li><a href="#what">What it does</a></li>
+    <li><a href="#setup">Finish the setup</a></li>
+    <li><a href="#nightly">Every night at 00:30</a></li>
+    <li><a href="#daily">Review and play</a></li>
+    <li><a href="#rules">Only Hindi, ghazal, folk</a></li>
+    <li><a href="#id">How songs are identified</a></li>
+    <li><a href="#services">YouTube Music · Spotify · Apple</a></li>
+    <li><a href="#fix">When something breaks</a></li>
+    <li><a href="#files">Where things live</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">Owner's guide · August 2026</div>
+  <h1>MastGaane<span>.</span> The reels you scroll at night, as a playlist by morning.</h1>
+  <p class="lede">A small program on this PC that scrolls your Instagram Reels feed every night, notices the Hindi film songs, ghazals and folk songs in it, identifies them, and keeps a playlist up to date on YouTube Music, Spotify and Apple Music.</p>
+  <div class="status">
+    <span class="chip ok"><i></i>Installed · 16 tests passing</span>
+    <span class="chip ok"><i></i>Scheduled daily 00:30</span>
+    <span class="chip ok"><i></i>Local AI: Ollama qwen2.5:7b</span>
+    <span class="chip todo"><i></i>To do: Instagram login</span>
+    <span class="chip todo"><i></i>To do: YouTube Music headers</span>
+  </div>
+</header>
+
+<h2 id="what">What it does</h2>
+<p>Instagram never tells you which reels you watched, so MastGaane watches <em>with</em> you: it opens its own Chrome window, scrolls the Reels feed the way a person would, and records what the feed serves. Because the browser is a real Chrome with a remembered login, Instagram sees ordinary browsing. The app never calls Instagram's servers itself; it only reads the data the page fetches on its own.</p>
+<div class="flow">
+  <div><b>Harvest</b>Chrome scrolls ~150 reels, lingers on musical ones, records each reel and its tagged audio.</div>
+  <div><b>Resolve</b>Finds the song: Instagram's tag → Shazam → lyrics + local AI. Then labels language and genre.</div>
+  <div><b>Sync</b>Approved songs go to the YouTube Music playlist, Spotify (if enabled), and the Apple Music list.</div>
+  <div><b>Report</b>A morning summary in <code>reports/</code> and the web page at <code>localhost:8787</code>.</div>
+</div>
+<p>Lingering longer on the musical reels has a side effect you will like: it nudges the Instagram algorithm toward more of them.</p>
+
+<h2 id="setup">Finish the setup</h2>
+<p>Everything is installed; two accounts still need to be connected once. Both are done from PowerShell inside the project folder:</p>
+<pre><code>cd B:\youtubeProjects\Buzzcaf_Media\MastGaane</code></pre>
+<ol class="steps">
+  <li><b>Log in to Instagram — <code>uv run mastgaane setup login</code></b>
+    <p>A Chrome window opens using MastGaane's own profile (separate from your normal Chrome). Sign in, finish any two-factor prompt, and let it scroll three reels. The login is remembered from then on.</p></li>
+  <li><b>Connect YouTube Music — <code>uv run mastgaane setup ytmusic</code></b>
+    <p>Open <a href="https://music.youtube.com">music.youtube.com</a> signed in → press F12 → <em>Network</em> tab → type <code>browse</code> in the filter → click any POST request → right-click <em>Request Headers</em> → <em>Copy value</em> → paste into the terminal → Enter, then Ctrl+Z and Enter. This writes <code>browser.json</code>.</p></li>
+  <li><b>Do one small test run while you watch</b>
+    <p><code>uv run mastgaane harvest --max-reels 20 --capture</code> then <code>uv run mastgaane resolve</code> and <code>uv run mastgaane sync</code>. Takes about five minutes and shows real songs flowing. The <code>--capture</code> flag saves Instagram's raw data so any parsing problem can be fixed quickly.</p></li>
+  <li><b>Optional: Apple Music on the iPhone, Spotify, a smarter AI</b>
+    <p>See <a href="#services">the services section</a>. None of these block the nightly run.</p></li>
+</ol>
+
+<h2 id="nightly">Every night at 00:30</h2>
+<p>A Windows scheduled task named <b>MastGaane Nightly</b> is registered and enabled. Next run: <b>Monday 24 August 2026, 00:30</b>. It runs <code>mastgaane run-all</code>: harvest → resolve → sync → report, about 30–40 minutes in total.</p>
+<dl class="kv">
+  <dt>needs</dt><dd>The PC on and you logged in to Windows. A locked screen is fine; a signed-out session is not, because Chrome has to be visible to Instagram as a normal browser.</dd>
+  <dt>you will see</dt><dd>A Chrome window appear and scroll by itself for ~25 minutes. Leave it alone; use your normal Chrome if you need the browser.</dd>
+  <dt>log</dt><dd><code>reports\nightly.log</code> — the full console output of each run.</dd>
+  <dt>summary</dt><dd><code>reports\2026-08-24.md</code> and so on: songs kept, rejected (with reasons), reels that need a look.</dd>
+  <dt>if it missed a night</dt><dd>The task is set to run as soon as the PC is next available, and to retry once after ten minutes if it fails.</dd>
+  <dt>change the time</dt><dd><code>.\scripts\schedule_task.ps1 -At "01:00"</code> re-registers it. Or use Task Scheduler → <em>MastGaane Nightly</em>.</dd>
+</dl>
+<div class="note"><b>Until Instagram is logged in</b>, the nightly run opens Chrome, waits five minutes for a login, then gives up and still runs the rest of the pipeline on whatever is already in the database. Do step 1 above before tonight and it will work from the first night.</div>
+
+<h2 id="daily">Review and play</h2>
+<pre><code>uv run mastgaane serve        <span class="c"># opens the review page at http://127.0.0.1:8787</span>
+uv run mastgaane serve --lan  <span class="c"># also reachable from your phone on the same Wi-Fi</span></code></pre>
+<div class="tbl"><table>
+  <tr><th>Page</th><th>What you do there</th></tr>
+  <tr><td><b>Songs</b></td><td>Every identified song with language, genre, confidence, and the reels it came from. <b>✓ keep</b> or <b>✗ skip</b>; fix a wrong title with <em>edit</em>. Songs the AI is sure about are approved automatically.</td></tr>
+  <tr><td><b>Reels</b></td><td>The raw history of what the algorithm showed you, with the status of each one.</td></tr>
+  <tr><td><b>Playlist &amp; Player</b></td><td>Plays the approved songs right there (YouTube), with buttons to open the playlist in YouTube Music or Spotify, and <em>Sync now</em>.</td></tr>
+  <tr><td><b>Apple Music</b></td><td>Phone-friendly list with an <em>Open</em> button per song, plus the Shortcut recipe for bulk import.</td></tr>
+</table></div>
+<p>The same things from the terminal:</p>
+<pre><code>uv run mastgaane songs --status pending   <span class="c"># what is waiting for you</span>
+uv run mastgaane approve 12 15            <span class="c"># or  --reject</span>
+uv run mastgaane sync                     <span class="c"># push approved songs now</span>
+uv run mastgaane report                   <span class="c"># regenerate today's summary</span></code></pre>
+
+<h2 id="rules">Only Hindi, ghazal, folk</h2>
+<p>Every song is labelled with the language it is <em>sung</em> in (captions are ignored — they are usually English) and a genre. Then two allow-lists in <code>rules.yaml</code> decide. Anything outside them is marked <em>rejected</em> with the reason, so nothing disappears silently.</p>
+<pre><code>allowed_languages: [hindi, urdu]          <span class="c"># ghazals are often Urdu, so both count</span>
+allowed_genres:    [film, ghazal, folk]   <span class="c"># add sufi, classical, devotional, indie to widen</span>
+always_keep_artists: [Jagjit Singh, Ghulam Ali, Arijit Singh, …]
+always_skip_patterns: [meme, comedy, dialogue, remix, phonk, …]</code></pre>
+<p>Tested against the local AI:</p>
+<div class="tbl"><table>
+  <tr><th>Song</th><th>Verdict</th><th>Why</th></tr>
+  <tr><td>Tum Hi Ho — Arijit Singh</td><td class="keep">keep</td><td>hindi · film</td></tr>
+  <tr><td>Chupke Chupke Raat Din — Ghulam Ali</td><td class="keep">keep</td><td>hindi · ghazal</td></tr>
+  <tr><td>Nimbooda — Kavita Krishnamurthy</td><td class="keep">keep</td><td>hindi · folk</td></tr>
+  <tr><td>Perfect — Ed Sheeran</td><td class="skip">reject</td><td>english</td></tr>
+  <tr><td>Excuses — AP Dhillon</td><td class="skip">reject</td><td>punjabi</td></tr>
+  <tr><td>Vaathi Coming — Anirudh</td><td class="skip">reject</td><td>not Hindi/Urdu</td></tr>
+</table></div>
+<p>Edit <code>rules.yaml</code> any time; the next run picks it up. Want Punjabi too? Add <code>punjabi</code> to <code>allowed_languages</code>.</p>
+
+<h2 id="id">How songs are identified</h2>
+<div class="tbl"><table>
+  <tr><th>Tier</th><th>Source</th><th>Confidence</th></tr>
+  <tr><td class="num">1</td><td>Instagram's own music tag on the reel (most film songs)</td><td class="num">0.90</td></tr>
+  <tr><td class="num">2</td><td>Shazam fingerprint of a 25-second clip, for "original audio" reels and covers</td><td class="num">0.75</td></tr>
+  <tr><td class="num">3</td><td>Whisper transcribes the lyrics; the AI guesses the song from lyrics, caption and account</td><td class="num">≤ 0.70</td></tr>
+</table></div>
+<p>Songs with confidence ≥ 0.80 that pass the rules are approved without asking; the rest wait on the Songs page. The same song served by five different reels becomes one entry with a <em>seen ×5</em> count — a good sign the algorithm really wants you to hear it.</p>
+<h3>The AI runs on this PC</h3>
+<p>Song guessing and genre labelling use <b>Ollama</b> with <code>qwen2.5:7b</code> on the RTX 5060 Ti — about five seconds per song, nothing leaves the machine, no cost. The app starts Ollama itself if it is not running. Check it any time with <code>uv run mastgaane llm --test</code>.</p>
+<ul>
+  <li><b>Smarter local model</b> (recommended, fits in 16 GB): <code>ollama pull qwen2.5:14b</code> and set <code>LLM_MODEL=qwen2.5:14b</code> in <code>.env</code>. The 7B model occasionally misjudges taste — it skipped <em>Ranjha</em> as "pop".</li>
+  <li><b>Claude as backup</b>: put <code>ANTHROPIC_API_KEY</code> in <code>.env</code>. With <code>LLM_FALLBACK=true</code> it is used only when the local model is down or answers badly; <code>LLM_PROVIDER=claude</code> makes it primary (best at obscure ghazals from garbled lyrics).</li>
+</ul>
+
+<h2 id="services">YouTube Music · Spotify · Apple</h2>
+<h3>YouTube Music — primary</h3>
+<p>After the one-time header setup, <code>sync</code> creates a private playlist <b>MastGaane - Late Night</b> and adds each approved song's best match. Re-running never duplicates.</p>
+<h3>Apple Music — from the iPhone, no developer account</h3>
+<ol class="steps">
+  <li><b>Start the page for the phone</b><p><code>uv run mastgaane serve --lan</code> on the PC. Allow it through Windows Firewall the first time.</p></li>
+  <li><b>Open it on the iPhone (same Wi-Fi)</b><p><code>http://192.168.1.9:8787/apple</code> — tap <em>Open</em> on any song; it lands in Apple Music where <em>+ Add to Playlist</em> is one tap away.</p></li>
+  <li><b>Bulk import with a Shortcut (build once)</b><p>Shortcuts app → + → <em>Get Contents of URL</em> <code>http://192.168.1.9:8787/apple/import.txt</code> → <em>Split Text</em> by New Lines → <em>Repeat with Each</em>: <em>Search Music</em> (Apple Music catalog, limit 1, term = Repeat Item) → <em>Add to Playlist</em> "MastGaane - Late Night". Run it whenever you want the Apple playlist refreshed.</p></li>
+</ol>
+<p>If you ever join the Apple Developer Program, set <code>APPLE_DEV_TOKEN</code>, open <code>/apple/auth</code> once, and the playlist syncs automatically.</p>
+<h3>Spotify — only with Premium</h3>
+<p>Spotify's developer rules (March 2026) require a Premium account. Create an app at <a href="https://developer.spotify.com/dashboard">developer.spotify.com</a> with redirect URI <code>http://127.0.0.1:8788/callback</code>, put the client ID and secret in <code>.env</code>, set <code>SPOTIFY_ENABLED=true</code>, run <code>uv run mastgaane setup spotify</code>. The Playlist page then gets a <em>Play on my Spotify device</em> button.</p>
+
+<h2 id="fix">When something breaks</h2>
+<div class="tbl"><table>
+  <tr><th>Symptom</th><th>What to do</th></tr>
+  <tr><td>Reels are recorded but few have song names</td><td>Instagram changed its data format (happens every few weeks). Run <code>harvest --max-reels 5 --capture</code> and share the files in <code>data\captures</code>; it is usually a one-line fix in <code>parse.py</code>.</td></tr>
+  <tr><td>Instagram shows "suspicious activity"</td><td>Run <code>uv run mastgaane setup login</code>, clear the prompt in the window, and lower <code>MAX_REELS</code> to ~60 in <code>.env</code> for a few days.</td></tr>
+  <tr><td>Chrome does not open / "did not open debug port"</td><td>Check <code>CHROME_PATH</code> in <code>.env</code>. Port 9222 on this PC belongs to Adobe, so MastGaane uses 9555 — keep it that way.</td></tr>
+  <tr><td>Songs all land in "needs review"</td><td>Ollama is probably not running: <code>uv run mastgaane llm</code> shows what is reachable.</td></tr>
+  <tr><td>Nothing happened last night</td><td>Open <code>reports\nightly.log</code>. If empty, the PC was off or you were signed out of Windows. Run <code>uv run mastgaane run-all</code> by hand.</td></tr>
+  <tr><td>Phone cannot open the Apple page</td><td>Use <code>serve --lan</code>, same Wi-Fi, and allow Python through Windows Firewall (private networks).</td></tr>
+</table></div>
+
+<h2 id="files">Where things live</h2>
+<dl class="kv">
+  <dt>.env</dt><dd>All settings: limits, which services are on, API keys. Comments must sit on their own lines.</dd>
+  <dt>rules.yaml</dt><dd>Taste: allowed languages and genres, always-keep artists, skip words.</dd>
+  <dt>data\mastgaane.db</dt><dd>Everything harvested and identified (SQLite). Delete to start over.</dd>
+  <dt>reports\</dt><dd>Daily summaries, <code>nightly.log</code>, <code>apple_import.txt</code>.</dd>
+  <dt>chrome-profile\</dt><dd>MastGaane's own Chrome login. Never share it.</dd>
+  <dt>browser.json</dt><dd>YouTube Music credentials from the header paste.</dd>
+  <dt>README.md</dt><dd>Developer notes: architecture, tests (<code>uv run pytest</code>), how to extend.</dd>
+</dl>
+
+<footer>MastGaane lives at <code>B:\youtubeProjects\Buzzcaf_Media\MastGaane</code>. Scrolling Instagram with automation is against its terms of service; the design keeps the risk low, but the account is yours.</footer>
+</main>
+</div>

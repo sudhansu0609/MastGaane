@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="filters">
+  <span>Status:</span>
+  <a href="/" class="{{ 'on' if not status else '' }}">all</a>
+  {% for st in ['pending','approved','rejected'] %}<a href="/?status={{st}}" class="{{ 'on' if status==st else '' }}">{{st}} ({{counts[st]}})</a>{% endfor %}
+  <span style="margin-left:12px">Genre:</span>
+  {% for g in ['film','ghazal','folk','sufi','classical','indie','devotional','other'] %}<a href="/?genre={{g}}" class="{{ 'on' if genre==g else '' }}">{{g}}</a>{% endfor %}
+  <form method="get" action="/" style="margin-left:auto"><input name="q" value="{{q}}" placeholder="search title/artist"></form>
+</div>
+
+{% for s in songs %}
+<div class="card">
+  <div>
+    <div class="title">{{ s.title }} <span class="artist">— {{ s.artist }}</span></div>
+    <div class="meta">
+      <span class="pill {{ s.status }}">{{ s.status }}</span>
+      <span class="pill">{{ s.language or '?' }} · {{ s.genre or '?' }}</span>
+      <span>tier {{ s.source_tier }} · conf {{ '%.2f' % s.confidence }}</span>
+      <span>seen ×{{ s.times_seen }}</span>
+      <span title="{{ s.classify_reason }}">{{ s.classify_reason[:80] }}</span>
+    </div>
+    <div class="links" style="margin-top:6px">
+      <a target="_blank" href="https://music.youtube.com/search?q={{ (s.title ~ ' ' ~ s.artist) | urlencode }}">YT Music ↗</a>
+      {% if s.yt_video_id %}<a target="_blank" href="https://music.youtube.com/watch?v={{ s.yt_video_id }}">▶ matched</a>{% endif %}
+      <a target="_blank" href="https://open.spotify.com/search/{{ (s.title ~ ' ' ~ s.artist) | urlencode }}">Spotify ↗</a>
+      {% if s.apple_url %}<a target="_blank" href="{{ s.apple_url }}">Apple ↗</a>{% endif %}
+    </div>
+    {% set rs = reels_by_song.get(s.id, []) %}
+    {% if rs %}
+    <div class="thumbs">
+      {% for r in rs[:8] %}
+      <a target="_blank" href="{{ r.url }}" title="@{{ r.owner }}">{% if r.thumb_url %}<img src="{{ r.thumb_url }}" loading="lazy" referrerpolicy="no-referrer">{% endif %}<span>@{{ r.owner }}</span></a>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <details><summary>edit title / artist</summary>
+      <form method="post" action="/songs/{{ s.id }}/edit" style="display:flex;gap:6px;margin-top:6px">
+        <input name="title" value="{{ s.title }}"><input name="artist" value="{{ s.artist }}"><input type="hidden" name="back" value="{{ request.url }}"><button>save</button>
+      </form>
+    </details>
+  </div>
+  <div class="actions">
+    <form method="post" action="/songs/{{ s.id }}/status"><input type="hidden" name="status" value="approved"><input type="hidden" name="back" value="{{ request.url }}"><button class="ok">✓ keep</button></form>
+    <form method="post" action="/songs/{{ s.id }}/status"><input type="hidden" name="status" value="rejected"><input type="hidden" name="back" value="{{ request.url }}"><button class="bad">✗ skip</button></form>
+  </div>
+</div>
+{% else %}
+<p style="color:var(--dim)">No songs yet. Run <code>mastgaane harvest</code> then <code>mastgaane resolve</code>.</p>
+{% endfor %}
+{% endblock %}

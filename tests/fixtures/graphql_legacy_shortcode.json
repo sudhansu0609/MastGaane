@@ -1,0 +1,23 @@
+{
+  "data": {
+    "xdt_shortcode_media": {
+      "__typename": "XDTGraphVideo",
+      "id": "3456789012345678904",
+      "shortcode": "C_legacy789",
+      "is_video": true,
+      "product_type": "clips",
+      "taken_at_timestamp": 1755902000,
+      "video_url": "https://scontent.cdninstagram.com/v/t66/ghi.mp4",
+      "display_url": "https://scontent.cdninstagram.com/v/t51/ghi.jpg",
+      "owner": {"username": "sufi.nights", "id": "42"},
+      "edge_media_to_caption": {"edges": [{"node": {"text": "Abida ji ✨ #sufi"}}]},
+      "clips_music_attribution_info": {
+        "artist_name": "Abida Parveen",
+        "song_name": "Tere Ishq Nachaya",
+        "uses_original_audio": false,
+        "should_mute_audio": false,
+        "audio_id": "111222333"
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MastGaane</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#0f0f13; --card:#1a1a22; --fg:#e8e6e3; --dim:#8a8894; --acc:#f2b544; --ok:#4ccf7a; --bad:#e0564f; --line:#2a2a35; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.45 system-ui, Segoe UI, sans-serif; background:var(--bg); color:var(--fg); }
+  header { display:flex; gap:18px; align-items:center; padding:14px 22px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; }
+  header h1 { font-size:18px; margin:0 12px 0 0; color:var(--acc); letter-spacing:.5px; }
+  header a { color:var(--fg); text-decoration:none; opacity:.8; } header a.on, header a:hover { opacity:1; color:var(--acc); }
+  main { padding:18px 22px; max-width:1200px; margin:0 auto; }
+  .filters { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; color:var(--dim); }
+  .filters a { color:var(--fg); text-decoration:none; padding:3px 9px; border:1px solid var(--line); border-radius:999px; }
+  .filters a.on { border-color:var(--acc); color:var(--acc); }
+  input, select { background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:5px 8px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:10px; display:grid; grid-template-columns: 1fr auto; gap:10px; }
+  .title { font-weight:600; font-size:16px; } .artist { color:var(--dim); }
+  .meta { color:var(--dim); font-size:13px; margin-top:4px; display:flex; gap:10px; flex-wrap:wrap; }
+  .pill { padding:1px 8px; border-radius:999px; border:1px solid var(--line); font-size:12px; }
+  .pill.approved { color:var(--ok); border-color:var(--ok);} .pill.rejected { color:var(--bad); border-color:var(--bad);} .pill.pending { color:var(--acc); border-color:var(--acc);}
+  .actions { display:flex; gap:6px; align-items:start; flex-wrap:wrap; justify-content:flex-end; }
+  button { background:#23232e; color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:5px 10px; cursor:pointer; }
+  button.ok { border-color:var(--ok); color:var(--ok);} button.bad { border-color:var(--bad); color:var(--bad);} button.acc { border-color:var(--acc); color:var(--acc); }
+  .links a { color:var(--acc); text-decoration:none; margin-right:8px; font-size:13px; }
+  .thumbs { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .thumbs a img { width:54px; height:96px; object-fit:cover; border-radius:6px; border:1px solid var(--line); }
+  .thumbs a span { display:block; font-size:11px; color:var(--dim); max-width:54px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  details summary { cursor:pointer; color:var(--dim); font-size:13px; }
+  .grid { display:grid; grid-template-columns: 1fr 360px; gap:18px; } @media (max-width: 900px) { .grid { grid-template-columns:1fr; } }
+  #player { width:100%; aspect-ratio:16/9; border:0; border-radius:10px; background:#000; }
+  ol.queue { padding-left:20px; } ol.queue li { margin:3px 0; cursor:pointer; } ol.queue li.now { color:var(--acc); }
+  .msg { color:var(--ok); margin-bottom:10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>♪ MastGaane</h1>
+  <a href="/" class="{{ 'on' if request.url.path == '/' else '' }}">Songs</a>
+  <a href="/reels" class="{{ 'on' if request.url.path == '/reels' else '' }}">Reels</a>
+  <a href="/playlist" class="{{ 'on' if request.url.path == '/playlist' else '' }}">Playlist &amp; Player</a>
+  <a href="/apple" class="{{ 'on' if request.url.path.startswith('/apple') else '' }}"> Apple Music</a>
+</header>
+<main>{% block body %}{% endblock %}</main>
+</body>
+</html>

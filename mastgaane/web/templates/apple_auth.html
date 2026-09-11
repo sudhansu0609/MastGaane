@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="card" style="display:block">
+{% if not dev_token %}
+  <b>APPLE_DEV_TOKEN is not set.</b> This page needs a MusicKit developer token (Apple Developer Program).
+  Without one, use the Shortcut route on the <a href="/apple" style="color:var(--acc)">Apple Music page</a>.
+{% else %}
+  <b>Connect Apple Music</b> — click, sign in with your Apple ID, and the user token is stored locally (data/apple_user_token.txt).
+  <p><button class="acc" id="go">Authorize MusicKit</button> <span id="st" style="color:var(--dim)"></span></p>
+  <form method="post" action="/apple/token" id="f"><input type="hidden" name="token" id="tok"></form>
+  <script src="https://js-cdn.music.apple.com/musickit/v3/musickit.js" async></script>
+  <script>
+    document.getElementById('go').onclick = async () => {
+      const st = document.getElementById('st');
+      try {
+        await MusicKit.configure({ developerToken: "{{ dev_token }}", app: { name: "MastGaane", build: "1" } });
+        const token = await MusicKit.getInstance().authorize();
+        document.getElementById('tok').value = token; document.getElementById('f').submit();
+      } catch (e) { st.textContent = 'failed: ' + e; }
+    };
+  </script>
+{% endif %}
+</div>
+{% endblock %}

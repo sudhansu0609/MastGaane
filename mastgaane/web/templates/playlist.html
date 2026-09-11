@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block body %}
+{% if request.query_params.get('msg') %}<div class="msg">{{ request.query_params.get('msg') }}</div>{% endif %}
+<div class="filters">
+  {% if yt_playlist %}<a target="_blank" href="https://music.youtube.com/playlist?list={{ yt_playlist }}">Open in YouTube Music ↗</a>{% endif %}
+  {% if sp_playlist %}<a target="_blank" href="https://open.spotify.com/playlist/{{ sp_playlist }}">Open in Spotify ↗</a>
+  <form method="post" action="/spotify/play"><button class="acc">▶ Play on my Spotify device</button></form>{% endif %}
+  <a href="/reports/apple_import.txt" title="reports/apple_import.txt — import via the iPhone Shortcut (see README)">Apple import list</a>
+  <form method="post" action="/sync" style="margin-left:auto"><input type="hidden" name="back" value="/playlist"><button class="acc">⟳ Sync approved songs now</button></form>
+</div>
+<div class="grid">
+  <div>
+    <div id="player"></div>
+    <p style="color:var(--dim);font-size:13px">Plays the YouTube matches of approved songs in order. Songs without a YouTube match yet appear after the next sync.</p>
+  </div>
+  <div>
+    <b>{{ songs|length }} approved</b>
+    <ol class="queue" id="queue">
+      {% for s in songs %}<li data-vid="{{ s.yt_video_id or '' }}" {% if not s.yt_video_id %}style="opacity:.5"{% endif %}>{{ s.title }} <span class="artist">— {{ s.artist }}</span></li>{% endfor %}
+    </ol>
+  </div>
+</div>
+<script>
+  const ids = {{ yt_ids | tojson }};
+  let player;
+  const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(tag);
+  window.onYouTubeIframeAPIReady = function () {
+    player = new YT.Player('player', { playerVars: { autoplay: 0 }, events: { onReady: () => { if (ids.length) player.cuePlaylist(ids); }, onStateChange: mark } });
+  };
+  function mark() {
+    if (!player || !player.getVideoData) return;
+    const v = player.getVideoData().video_id;
+    document.querySelectorAll('#queue li').forEach(li => li.classList.toggle('now', li.dataset.vid === v));
+  }
+  document.querySelectorAll('#queue li').forEach(li => li.onclick = () => { const i = ids.indexOf(li.dataset.vid); if (i >= 0 && player) player.playVideoAt(i); });
+</script>
+{% endblock %}

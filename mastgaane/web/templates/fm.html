@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="fm">
+  <div class="top">
+    <div>
+      <div class="brand">MastGaane FM</div>
+      <div class="artist" id="slot">आपकी पसंद, आपका रेडियो — it learns from every skip and 👍</div>
+    </div>
+    <div class="modes">
+      <button data-mode="audio" title="Audio only — no ads, works with the screen off">🎧 Audio</button>
+      <button data-mode="video" title="Music videos (YouTube player; programmes stay audio)">📺 Video</button>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div id="ytwrap" hidden><div id="yt"></div></div>
+    <div id="card" class="card-now">
+      <div class="kicker" id="kicker">Ready</div>
+      <div class="big" id="title">Press start</div>
+      <div class="artist" id="who"></div>
+      <div class="link" id="link"></div>
+    </div>
+  </div>
+
+  <audio id="au" preload="auto"></audio>
+  <div class="controls">
+    <button id="start" class="acc">▶ Start FM</button>
+    <button id="pause" hidden>⏸ Pause</button>
+    <button id="skip" title="Skip — counts as 'not now'">⏭ Skip</button>
+    <button id="like" class="ok" title="More like this">👍</button>
+    <button id="dislike" class="bad" title="Never again">👎</button>
+    <label class="artist"><input type="checkbox" id="talk" checked> host voice</label>
+  </div>
+  <div class="artist" id="upnext"></div>
+</div>
+<style>
+  .fm { max-width:760px; margin:0 auto; }
+  .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+  .brand { font-size:22px; font-weight:700; color:var(--acc); letter-spacing:.5px; }
+  .modes button.on { border-color:var(--acc); color:var(--acc); }
+  .stage { background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  #ytwrap iframe, #yt { width:100%; aspect-ratio:16/9; display:block; border:0; background:#000; }
+  .card-now { padding:18px 20px; }
+  .kicker { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--acc); }
+  .big { font-size:24px; font-weight:650; margin:4px 0; overflow-wrap:anywhere; }
+  .link { margin-top:10px; font-size:15px; color:var(--fg); opacity:.85; font-style:italic; }
+  .controls { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:14px 0 8px; }
+  .controls button { font-size:15px; padding:8px 14px; }
+  #upnext { font-size:13px; }
+</style>
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+const $ = id => document.getElementById(id);
+const au = $('au');
+let mode = 'audio';
+try { mode = localStorage.getItem('mg-fm-mode') || 'audio'; } catch (e) {}
+let cur = null, upcoming = null, fetching = null, n = 0, phase = 'idle', yt = null, ytReady = false, startedAt = 0;
+
+function setMode(m) {
+  mode = m; try { localStorage.setItem('mg-fm-mode', m); } catch (e) {}
+  document.querySelectorAll('.modes button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+}
+document.querySelectorAll('.modes button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+setMode(mode);
+
+window.onYouTubeIframeAPIReady = () => {
+  yt = new YT.Player('yt', { playerVars: { playsinline: 1, rel: 0 }, events: {
+    onReady: () => { ytReady = true; },
+    onStateChange: e => { if (e.data === YT.PlayerState.ENDED && phase === 'main') finish('full'); } } });
+};
+
+function describe(it) { return it.kind === 'episode' ? `${it.programme_name}: ${it.title}` : `${it.title} — ${it.artist}`; }
+
+// fast = template announcement (instant); otherwise the LLM writes it, which takes ~20 s
+function request(fast) {
+  const ex = [cur && cur.ref, upcoming && upcoming.ref].filter(Boolean).join(',');
+  const q = new URLSearchParams({ exclude: ex, n: String(n), previous: cur ? describe(cur) : '', talk: $('talk').checked ? '1' : '0', llm: fast || n === 0 ? '0' : '1' });
+  return fetch('/jockey/next?' + q).then(async r => {
+    if (!r.ok) throw new Error((await r.json()).detail || r.statusText);
+    n += 1; return r.json();
+  });
+}
+function fetchNext() {
+  if (!fetching) fetching = request(false).finally(() => { fetching = null; });
+  return fetching;
+}
+
+function show(it) {
+  $('kicker').textContent = it.kind === 'episode' ? `कार्यक्रम · ${it.programme_name}` : (it.discovery ? 'नई खोज · new find' : (it.genre || 'song'));
+  $('title').textContent = it.title; $('who').textContent = [it.artist, it.year].filter(Boolean).join(' · ');
+  $('link').textContent = it.link_text || '';
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: it.title, artist: it.artist || it.programme_name, album: 'MastGaane FM' });
+  }
+}
+
+async function playItem(it) {
+  cur = it; show(it); startedAt = Date.now();
+  $('upnext').textContent = '';
+  if (it.link_audio && $('talk').checked) {
+    phase = 'link'; $('ytwrap').hidden = true; au.src = it.link_audio;
+    try { await au.play(); return; } catch (e) {}
+  }
+  playMain();
+}
+
+function playMain() {
+  phase = 'main'; startedAt = Date.now();
+  const video = mode === 'video' && cur.kind === 'song' && cur.yt && ytReady;
+  $('ytwrap').hidden = !video;
+  if (video) { au.pause(); yt.loadVideoById(cur.yt); }
+  else { if (ytReady) yt.stopVideo(); $('kicker').textContent += ' · loading…'; au.src = cur.audio; au.play().catch(() => {}); }
+  // line up the next one while this plays (gives the LLM time to write the next announcement)
+  if (!upcoming) { const asked = cur; fetchNext().then(it => { if (cur === asked && !upcoming) { upcoming = it; $('upnext').textContent = 'अगला: ' + describe(it); } }).catch(() => {}); }
+}
+
+au.addEventListener('ended', () => { if (phase === 'link') playMain(); else if (phase === 'main') finish('full'); });
+au.addEventListener('playing', () => { if (phase === 'main') show(cur); });
+au.addEventListener('error', () => { if (phase === 'main') { $('kicker').textContent = 'could not play — skipping'; setTimeout(() => finish('skip'), 1500); } else if (phase === 'link') playMain(); });
+
+function listened() {
+  if (phase !== 'main') return 0;
+  if (!$('ytwrap').hidden && yt && yt.getCurrentTime) return yt.getCurrentTime();
+  return au.currentTime || 0;
+}
+function duration() { return (!$('ytwrap').hidden && yt && yt.getDuration) ? yt.getDuration() : (au.duration || 0); }
+
+function report(outcome) {
+  if (!cur) return;
+  const body = { kind: cur.kind, ref: cur.ref, outcome, title: cur.title, artist: cur.artist, genre: cur.genre, programme: cur.programme,
+                 listened_s: listened(), duration_s: isFinite(duration()) ? duration() : 0 };
+  fetch('/jockey/event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+}
+
+async function finish(outcome) {
+  report(outcome);
+  phase = 'between'; $('kicker').textContent = 'next…';
+  let it = upcoming; upcoming = null;
+  try { it = it || await request(true); } catch (e) { $('title').textContent = e.message; return; }
+  playItem(it);
+}
+
+$('start').onclick = async () => {
+  $('start').hidden = true; $('pause').hidden = false;
+  $('title').textContent = 'tuning in…';
+  try { playItem(await request(true)); } catch (e) { $('title').textContent = e.message; $('start').hidden = false; }
+};
+$('pause').onclick = () => {
+  const ytOn = !$('ytwrap').hidden;
+  const paused = ytOn ? yt.getPlayerState() !== YT.PlayerState.PLAYING : au.paused;
+  if (paused) { ytOn ? yt.playVideo() : au.play(); $('pause').textContent = '⏸ Pause'; }
+  else { ytOn ? yt.pauseVideo() : au.pause(); $('pause').textContent = '▶ Play'; }
+};
+$('skip').onclick = () => cur && finish('skip');
+$('like').onclick = () => { if (!cur) return; report('like'); $('kicker').textContent = '👍 noted — more like this'; };
+$('dislike').onclick = () => { if (!cur) return; report('dislike'); finish('skip'); };
+if ('mediaSession' in navigator) navigator.mediaSession.setActionHandler('nexttrack', () => cur && finish('skip'));
+</script>
+{% endblock %}

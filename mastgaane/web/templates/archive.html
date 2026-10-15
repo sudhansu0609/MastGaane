@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="nowbar">
+  <div style="flex:1;min-width:0"><div class="title" id="now">Vividh Bharati archive</div><div class="artist" id="nowsub">Old programmes, no ads — pick a programme, then an episode</div></div>
+  <audio id="audio" controls preload="none"></audio>
+</div>
+<div class="progs">
+  {% for slug, p in programmes.items() %}
+  <a class="prog {{ 'on' if slug == current else '' }}" href="/archive?p={{ slug }}">
+    <span class="title">{{ p.name }}</span> <span class="hi">{{ p.hindi }}</span><span class="artist">{{ p.about }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% if current %}
+<div class="filters" style="margin-top:16px">
+  <b style="color:var(--fg)">{{ programmes[current].name }} — {{ total }} episodes</b>
+  <a href="/archive?p={{ current }}" class="{{ 'on' if not era else '' }}">all years</a>
+  {% for label, c in eras %}<a href="/archive?p={{ current }}&era={{ label|urlencode }}" class="{{ 'on' if era == label else '' }}">{{ label }} ({{ c }})</a>{% endfor %}
+  <a href="/archive?p={{ current }}&refresh=1" style="margin-left:auto">⟳ search again</a>
+</div>
+{% if not episodes %}<p class="artist">Nothing found right now — archive.org and YouTube may be slow; try “search again”.</p>{% endif %}
+<ol class="eps">
+  {% for e in episodes %}
+  <li data-src="{{ e.source }}" data-id="{{ e.id }}" data-title="{{ e.title }}">
+    <span class="title">{{ e.title }}</span>
+    <span class="artist">{% if e.year %}<b class="yr">{{ e.year }}</b> · {% endif %}{{ 'archive.org' if e.source == 'ia' else 'off-air recording' }}{% if e.duration %} · {{ e.duration }}{% endif %}</span>
+    <div class="files"></div>
+  </li>
+  {% endfor %}
+</ol>
+{% endif %}
+<style>
+  .nowbar { position:sticky; top:58px; z-index:1; display:flex; flex-wrap:wrap; gap:14px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:16px; }
+  .nowbar audio { width:min(420px, 100%); }
+  .progs { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:8px; }
+  .prog { display:flex; flex-direction:column; gap:2px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--fg); text-decoration:none; }
+  .prog.on, .prog:hover { border-color:var(--acc); }
+  .prog .hi { color:var(--acc); font-size:13px; } .prog .artist { font-size:12px; }
+  ol.eps { padding-left:22px; } ol.eps li { padding:7px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
+  ol.eps li .artist { display:block; font-size:12px; } ol.eps li.now .title { color:var(--acc); }
+  .yr { color:var(--acc); font-weight:600; }
+  .files button { margin:6px 6px 0 0; font-size:12px; }
+</style>
+<script>
+  const audio = document.getElementById('audio'), now = document.getElementById('now'), sub = document.getElementById('nowsub');
+  function start(url, title, li, note) {
+    document.querySelectorAll('ol.eps li').forEach(x => x.classList.toggle('now', x === li));
+    now.textContent = title; sub.textContent = note;
+    audio.src = url; audio.play().catch(() => {});
+  }
+  audio.addEventListener('playing', () => { sub.textContent = 'playing · no ads'; });
+  audio.addEventListener('error', () => { if (audio.src) sub.textContent = 'Could not play this episode — try another.'; });
+  document.querySelectorAll('ol.eps li').forEach(li => li.onclick = async (ev) => {
+    if (ev.target.closest('.files')) return;
+    const { src, id, title } = li.dataset;
+    if (src === 'yt') return start(`/archive/yt/${id}.audio`, title, li, 'fetching the audio once (≈10–40 s), then it is saved for next time…');
+    const box = li.querySelector('.files');
+    if (box.childElementCount) return;
+    sub.textContent = 'opening archive.org item…';
+    const files = await (await fetch(`/archive/ia/${encodeURIComponent(id)}.json`)).json();
+    if (!files.length) { sub.textContent = 'No MP3 files in this item.'; return; }
+    if (files.length === 1) return start(files[0].url, title, li, 'archive.org');
+    files.forEach(f => { const b = document.createElement('button'); b.textContent = f.title; b.onclick = () => start(f.url, `${title} — ${f.title}`, li, 'archive.org'); box.appendChild(b); });
+    sub.textContent = `${files.length} recordings in this item — pick one`;
+  });
+</script>
+{% endblock %}

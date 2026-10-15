@@ -11,16 +11,19 @@ from .base import Track, score_match
 class YouTubeMusicAdapter:
     name = "ytmusic"
 
+    def __init__(self, anonymous: bool = False):
+        # search and radio work logged-out; only playlist writes need browser.json
+        self.anonymous = anonymous
+        self._client = None
+
     def available(self) -> bool:
         return settings.ytmusic_enabled and settings.ytmusic_auth_file.exists()
-
-    _client = None
 
     def _yt(self):
         if self._client is None:
             from ytmusicapi import YTMusic
 
-            self._client = YTMusic(str(settings.ytmusic_auth_file))
+            self._client = YTMusic() if self.anonymous else YTMusic(str(settings.ytmusic_auth_file))
         return self._client
 
     def search(self, title: str, artist: str) -> Track | None:

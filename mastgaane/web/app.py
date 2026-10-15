@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from sqlmodel import select
 
 from .. import ports
 from ..config import settings
-from ..db import PlaylistItem, Reel, Song, session
+from ..db import PlaylistItem, Reel, Song, session, set_manual_status
 
 app = FastAPI(title="MastGaane")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -86,6 +88,130 @@ def playlist(request: Request):
     return render(request, "playlist.html", songs=rows, yt_ids=ids, yt_playlist=yt_pl, sp_playlist=sp_pl)
 
 
+@app.get("/discover")
+def discover_page(request: Request):
+    with session() as s:
+        rows = s.exec(select(Song).where(Song.status == "pending", Song.yt_video_id.is_not(None)).order_by(Song.first_seen.desc())).all()
+    return render(request, "playlist.html", songs=rows, yt_ids=[x.yt_video_id for x in rows], discover=True)
+
+
+@app.get("/archive")
+def archive_page(request: Request, p: Optional[str] = None, era: Optional[str] = None, refresh: int = 0):
+    from collections import Counter
+
+    from .. import archive
+
+    eps = archive.episodes(p, refresh=bool(refresh)) if p in archive.PROGRAMMES else []
+    eras = Counter(archive.decade_of(e.year) for e in eps)
+    shown = [e for e in eps if archive.decade_of(e.year) == era] if era else eps
+    labels = [d[0] for d in archive.DECADES] + ["year unknown"]
+    return render(request, "archive.html", programmes=archive.PROGRAMMES, current=p if p in archive.PROGRAMMES else None,
+                  episodes=shown, total=len(eps), eras=[(x, eras[x]) for x in labels if eras[x]], era=era)
+
+
+@app.get("/archive/ia/{identifier}.json")
+def archive_ia(identifier: str):
+    from .. import archive
+
+    try:
+        return archive.ia_files(identifier)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/archive/yt/{video_id}.audio")
+def archive_yt(video_id: str):
+    from .. import archive
+
+    try:
+        path = archive.yt_audio(video_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(502, f"could not fetch audio: {str(e)[:200]}")
+    return FileResponse(path, media_type=archive.MEDIA_TYPES.get(path.suffix, "application/octet-stream"))
+
+
+# ----------------------------------------------------------------------------- MastGaane FM
+@app.get("/fm")
+def fm_page(request: Request):
+    return render(request, "fm.html")
+
+
+@app.get("/jockey/next")
+def jockey_next(exclude: str = "", n: int = 0, previous: str = "", talk: int = 1, llm: int = 1):
+    from .. import jockey
+
+    item = jockey.next_item([x for x in exclude.split(",") if x], n_picked=n, previous=previous[:200], talk=bool(talk), use_llm=bool(llm))
+    if item is None:
+        raise HTTPException(404, "nothing to play yet — approve some songs or run `mastgaane discover`")
+    return item.model_dump()
+
+
+class PlayEvent(BaseModel):
+    kind: str
+    ref: str
+    outcome: str
+    title: str = ""
+    artist: str = ""
+    genre: str = ""
+    programme: str = ""
+    listened_s: float = 0.0
+    duration_s: float = 0.0
+
+
+@app.post("/jockey/event")
+def jockey_event(ev: PlayEvent):
+    from .. import jockey
+
+    if ev.outcome not in jockey.OUTCOME_SCORE or ev.kind not in ("song", "episode"):
+        raise HTTPException(400, "bad event")
+    jockey.record(**ev.model_dump())
+    return {"ok": True}
+
+
+@app.get("/jockey/voice/{key}.mp3")
+def jockey_voice(key: str):
+    from .. import jockey
+
+    path = jockey.VOICE_DIR / f"{key}.mp3"
+    if not re.fullmatch(r"[0-9a-f]{20}", key) or not path.exists():
+        raise HTTPException(404, "no such announcement")
+    return FileResponse(path, media_type="audio/mpeg")
+
+
+@app.get("/jockey/audio/{video_id}")
+def jockey_audio(video_id: str):
+    return archive_yt(video_id)
+
+
+@app.get("/naya")
+def naya_page(request: Request):
+    from .. import digest
+
+    return render(request, "naya.html", d=digest.latest())
+
+
+@app.post("/naya/build")
+def naya_build():
+    from .. import digest
+
+    digest.build()
+    return RedirectResponse("/naya", status_code=303)
+
+
+@app.post("/naya/rule")
+def naya_rule(list_name: str = Form(...), artist: str = Form(...)):
+    from .. import digest
+
+    try:
+        added = digest.add_to_rules(list_name, artist)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    msg = f"{artist} added to {list_name}" if added else f"{artist} was already in rules.yaml"
+    return RedirectResponse(f"/naya?msg={msg}", status_code=303)
+
+
 # ----------------------------------------------------------------------------- Apple Music
 def _lan_ip() -> str:
     import socket
@@ -96,6 +222,16 @@ def _lan_ip() -> str:
             return sk.getsockname()[0]
     except Exception:
         return "127.0.0.1"
+
+
+@app.get("/radio")
+def radio_page(request: Request):
+    from .. import radio
+
+    groups: dict[str, list] = {}
+    for st in radio.stations():
+        groups.setdefault(st.group, []).append(st)
+    return render(request, "radio.html", groups=list(groups.items()))
 
 
 @app.get("/apple")
@@ -150,9 +286,7 @@ def set_status(song_id: int, status: str = Form(...), back: str = Form("/")):
     with session() as s:
         song = s.get(Song, song_id)
         if song:
-            song.status = status
-            if status in ("approved", "rejected"):
-                song.keep = status == "approved"
+            set_manual_status(song, status)
             s.commit()
     return RedirectResponse(back, status_code=303)
 

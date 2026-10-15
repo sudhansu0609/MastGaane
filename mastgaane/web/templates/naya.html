@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block body %}
+{% if request.query_params.get('msg') %}<div class="msg">{{ request.query_params.get('msg') }}</div>{% endif %}
+<div class="filters">
+  <b style="color:var(--fg);font-size:18px">नया क्या है · Naya kya hai</b>
+  {% if d %}<span>made {{ d.made }} · last {{ d.days }} days</span>{% endif %}
+  <form method="post" action="/naya/build" style="margin-left:auto"><button class="acc">⟳ Build now</button></form>
+</div>
+{% if not d %}
+<p class="artist">No digest yet. It is built every week by the nightly run, or press “Build now”. Listen on ▶ FM for a while first — the digest is made from what you play, skip and 👍.</p>
+{% else %}
+<div class="naya">
+  <div class="card"><div>
+    <div class="title">Your week</div>
+    <div class="meta"><span>{{ d.plays }} plays</span><span>{{ d.hours }} h</span><span>👍 {{ d.likes }}</span><span>⏭ {{ d.skips }}</span><span>👎 {{ d.dislikes }}</span></div>
+    {% if d.top_artists %}<div class="meta">Most loved: {{ d.top_artists|join(', ') }}</div>{% endif %}
+    {% if d.programmes %}<div class="meta">Programmes: {% for name, c in d.programmes %}{{ name }} ×{{ c }}{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+  </div></div>
+
+  <div class="card"><div>
+    <div class="title">New finds</div>
+    <div class="meta"><span>{{ d.finds.total }} found</span><span>{{ d.finds.kept }} kept by you</span></div>
+    {% if d.finds.waiting %}<ul>{% for f in d.finds.waiting %}<li>{{ f }}</li>{% endfor %}</ul><a class="links" href="/discover">Try them on Discover →</a>{% endif %}
+  </div></div>
+
+  <div class="card"><div>
+    <div class="title">New programme episodes</div>
+    {% if d.new_episodes %}<ul>{% for e in d.new_episodes %}<li><a style="color:var(--acc)" href="/archive?p={{ e.programme }}">{{ e.title }}</a></li>{% endfor %}</ul>
+    {% else %}<div class="meta">None fetched this week.</div>{% endif %}
+  </div></div>
+
+  {% if d.rule_suggestions %}
+  <div class="card"><div>
+    <div class="title">Suggestions for your rules</div>
+    {% for r in d.rule_suggestions %}
+    <form method="post" action="/naya/rule" class="meta" style="align-items:center">
+      <input type="hidden" name="list_name" value="{{ r.list }}"><input type="hidden" name="artist" value="{{ r.artist }}">
+      <span>Always keep <b>{{ r.artist }}</b> ({{ r.list.replace('_', ' ') }}) — {{ r.why }}</span><button class="ok">Add</button>
+    </form>
+    {% endfor %}
+  </div></div>
+  {% endif %}
+
+  {% if d.ideas %}
+  <div class="card"><div>
+    <div class="title">Ideas from your jockey</div>
+    <ul>{% for i in d.ideas %}<li>{{ i }}</li>{% endfor %}</ul>
+  </div></div>
+  {% endif %}
+</div>
+{% endif %}
+<style> .naya .card { grid-template-columns:1fr; } .naya ul { margin:8px 0 0; padding-left:20px; } </style>
+{% endblock %}

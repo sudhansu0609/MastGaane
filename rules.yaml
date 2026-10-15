@@ -1,10 +1,15 @@
 # Curation rules (merged over built-in defaults). Edit freely; restart the command to apply.
 
-# Only songs SUNG in these languages are kept. Hindi film songs and ghazals are hindi/urdu.
-# Add "punjabi" here if you want Punjabi songs too.
+# Only songs SUNG in these languages are kept. Hindi film songs and ghazals are hindi/urdu;
+# Bhojpuri / Awadhi / Maithili / Magahi folk is kept too.
+# Add "punjabi" or "rajasthani" here if you want those songs too.
 allowed_languages:
   - hindi
   - urdu
+  - bhojpuri
+  - awadhi
+  - maithili
+  - magahi
 
 # film = Bollywood / Hindi film songs, ghazal, folk. Add "sufi", "classical", "devotional", "indie" to widen.
 allowed_genres:
@@ -12,6 +17,78 @@ allowed_genres:
   - ghazal
   - folk
 
+# Always kept as ghazals.
+ghazal_artists:
+  - Jagjit Singh
+  - Chitra Singh
+  - Ghulam Ali
+  - Mehdi Hassan
+  - Begum Akhtar
+  - Farida Khanum
+  - Iqbal Bano
+  - Pankaj Udhas
+  - Talat Aziz
+  - Talat Mahmood
+  - Bhupinder Singh
+  - Anup Jalota
+  - Chandan Dass
+  - Ahmed Hussain
+  - Penaz Masani
+  - Rekha Bhardwaj
+
+# Always kept as folk (Bhojpuri unless the title says otherwise). Add singers you discover.
+folk_artists:
+  - Sharda Sinha
+  - Bharat Sharma Vyas
+  - Malini Awasthi
+  - Chandan Tiwari
+  - Kalpana Patowary
+  - Mohammad Khalil
+  - Madan Rai
+  - Bharat Singh Bharti
+  - Vindhyavasini Devi
+  - Maithili Thakur
+
+# A folk form named in the title or caption makes the song folk.
+folk_keywords:
+  - chhath
+  - chhat geet
+  - kajri
+  - kajari
+  - chaita
+  - chaiti
+  - sohar
+  - birha
+  - purbi
+  - purvi
+  - nirgun
+  - lokgeet
+  - lok geet
+  - vivah geet
+  - jhumar
+  - faguwa
+  - bidesiya
+  - bhojpuri lok
+
+# Searches that seed nightly discovery. Weighted toward 1990s–2000s ghazals and Bhojpuri folk;
+# your approved songs (Rafi, Lata, Begum Akhtar…) keep the older classics coming too.
+seed_queries:
+  - Jagjit Singh 90s ghazal
+  - Pankaj Udhas ghazal 1990s
+  - Hariharan ghazal album
+  - Talat Aziz ghazal
+  - Jagjit Chitra Singh ghazal
+  - 2000s Hindi ghazal
+  - Hindi ghazal unplugged
+  - Sharda Sinha Chhath geet
+  - Bharat Sharma Vyas birha
+  - Bhojpuri lokgeet purane
+  - Chandan Tiwari lokgeet
+  - Malini Awasthi kajri
+  - Bhojpuri nirgun bhajan
+  - Kalpana Patowary Bhojpuri folk
+
+# Always kept (film songs unless the title says ghazal).
 always_keep_artists:
   - Jagjit Singh
   - Ghulam Ali

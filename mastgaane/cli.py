@@ -58,7 +58,7 @@ def report():
 
 @app.command("run-all")
 def run_all(max_reels: Optional[int] = None, max_minutes: Optional[int] = None, deep: bool = True):
-    """harvest → resolve → sync → report (what the nightly task runs)."""
+    """harvest → resolve → discover → new episodes → weekly digest → sync → report (the nightly task)."""
     from .harvester.reels_feed import harvest as _harvest
     from .playlists.sync import sync as _sync
     from .report import write_report
@@ -69,6 +69,25 @@ def run_all(max_reels: Optional[int] = None, max_minutes: Optional[int] = None, 
     except Exception as e:
         console.print(f"[red]harvest failed: {e}[/] — continuing with what we have")
     resolve_pending(deep=deep)
+    try:
+        from .discover import discover as _discover, match_missing
+
+        match_missing()
+        _discover()
+        from .discover import fill_years
+
+        fill_years()
+    except Exception as e:
+        console.print(f"[red]discover failed: {e}[/]")
+    try:
+        from .archive import fetch_new
+        from .digest import build, due
+
+        fetch_new()
+        if due():
+            build()
+    except Exception as e:
+        console.print(f"[red]episodes/digest failed: {e}[/]")
     _sync()
     console.print(f"Report → {write_report()}")
 
@@ -133,16 +152,100 @@ def songs(status: Optional[str] = None, limit: int = 50):
 @app.command()
 def approve(song_id: list[int], reject: bool = typer.Option(False, help="Reject instead of approve")):
     """Approve (or --reject) songs by id."""
-    from .db import Song, session
+    from .db import Song, session, set_manual_status
 
     with session() as s:
         for sid in song_id:
             song = s.get(Song, sid)
             if song:
-                song.status = "rejected" if reject else "approved"
-                song.keep = not reject
+                set_manual_status(song, "rejected" if reject else "approved")
         s.commit()
     console.print("done")
+
+
+@app.command()
+def reclassify(
+    status: list[str] = typer.Option(["rejected", "pending"], "--status", "-s", help="which songs to re-check"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="show what would change, write nothing"),
+):
+    """Re-run the classifier (after editing rules.yaml or switching LLM). Your own approve/reject calls are kept."""
+    from sqlmodel import select
+
+    from .db import MANUAL, Reel, Song, session
+    from .resolver.classify import classify, needs_review
+
+    flipped = 0
+    with session() as s:
+        rows = s.exec(select(Song).where(Song.status.in_(status))).all()
+        for song in rows:
+            if song.classify_reason.startswith(MANUAL):
+                continue
+            reel = s.exec(select(Reel).where(Reel.song_id == song.id)).first()
+            v = classify(song.title, song.artist, reel.caption if reel else "", song.lyrics_snippet)
+            new = "approved" if v.keep and song.confidence >= settings.auto_approve_min_confidence and not needs_review(v) else ("pending" if v.keep else "rejected")
+            if new != song.status:
+                flipped += 1
+                console.print(f"{song.status:>8} → {new:<8} {song.title} — {song.artist}  ({v.language}/{v.genre}) {v.reason[:80]}")
+            if not dry_run:
+                song.keep, song.genre, song.language, song.classify_reason, song.status = v.keep, v.genre, v.language, v.reason, new
+                s.commit()
+    console.print(f"{len(rows)} checked, {flipped} changed{' (dry run)' if dry_run else ''}")
+
+
+@app.command()
+def match():
+    """Find YouTube versions (and release years) of approved/pending songs so the web player can play them (no login needed)."""
+    from .discover import fill_years, match_missing
+
+    match_missing()
+    fill_years()
+
+
+@app.command()
+def discover(
+    seeds: int = typer.Option(12, help="how many radios to start"),
+    max_new: int = typer.Option(60, help="stop after classifying this many new songs"),
+):
+    """Find new songs like the ones you approved (YouTube Music radio) and queue them on the Discover page."""
+    from .discover import discover as _discover, match_missing
+
+    match_missing(("approved",))
+    _discover(n_seeds=seeds, max_new=max_new)
+
+
+@app.command("fetch-episodes")
+def fetch_episodes(per_programme: int = typer.Option(2, help="new episodes to download per programme")):
+    """Download a few new Vividh Bharati programme episodes so MastGaane FM plays them instantly."""
+    from .archive import fetch_new
+
+    for e in fetch_new(per_programme):
+        console.print(f"+ {e['programme']}: {e['title']}")
+
+
+@app.command()
+def digest(days: int = 7):
+    """Build the 'Naya kya hai' weekly digest (also shown at /naya)."""
+    from .digest import build
+
+    d = build(days)
+    console.print(f"{d['plays']} plays, {d['hours']} h, {d['likes']} likes, {d['skips']} skips; "
+                  f"{d['finds']['total']} new finds; {len(d['new_episodes'])} new episodes; "
+                  f"{len(d['rule_suggestions'])} rule suggestions")
+    for i in d["ideas"]:
+        console.print(f"  • {i}")
+
+
+@app.command()
+def radio(refresh: bool = typer.Option(False, "--refresh", help="re-fetch stations from radio-browser.info now")):
+    """List the radio stations (curated + directory finds)."""
+    from . import radio as R
+
+    if refresh:
+        console.print(f"directory: {R.refresh()} stations fetched")
+    t = Table("group", "station", "stream")
+    for st in R.stations():
+        t.add_row(st.group, st.name, st.url)
+    console.print(t)
 
 
 @app.command()

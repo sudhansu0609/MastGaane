@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block body %}
 {% if request.query_params.get('msg') %}<div class="msg">{{ request.query_params.get('msg') }}</div>{% endif %}
+{% if discover %}
+<div class="filters"><span>New songs found from radios of the songs you like. 👍 keeps a song (and uses it to find more), 👎 drops it. <code>uv run mastgaane discover</code> finds more.</span></div>
+{% else %}
 <div class="filters">
   {% if yt_playlist %}<a target="_blank" href="https://music.youtube.com/playlist?list={{ yt_playlist }}">Open in YouTube Music ↗</a>{% endif %}
   {% if sp_playlist %}<a target="_blank" href="https://open.spotify.com/playlist/{{ sp_playlist }}">Open in Spotify ↗</a>
@@ -8,15 +11,16 @@
   <a href="/reports/apple_import.txt" title="reports/apple_import.txt — import via the iPhone Shortcut (see README)">Apple import list</a>
   <form method="post" action="/sync" style="margin-left:auto"><input type="hidden" name="back" value="/playlist"><button class="acc">⟳ Sync approved songs now</button></form>
 </div>
+{% endif %}
 <div class="grid">
   <div>
     <div id="player"></div>
-    <p style="color:var(--dim);font-size:13px">Plays the YouTube matches of approved songs in order. Songs without a YouTube match yet appear after the next sync.</p>
+    {% if not discover %}<p style="color:var(--dim);font-size:13px">Plays the YouTube matches of approved songs in order. Songs without a YouTube match yet appear after <code>uv run mastgaane match</code>.</p>{% endif %}
   </div>
   <div>
-    <b>{{ songs|length }} approved</b>
+    <b>{{ songs|length }} {{ 'to try' if discover else 'approved' }}</b>
     <ol class="queue" id="queue">
-      {% for s in songs %}<li data-vid="{{ s.yt_video_id or '' }}" {% if not s.yt_video_id %}style="opacity:.5"{% endif %}>{{ s.title }} <span class="artist">— {{ s.artist }}</span></li>{% endfor %}
+      {% for s in songs %}<li data-vid="{{ s.yt_video_id or '' }}" {% if not s.yt_video_id %}style="opacity:.5"{% endif %}>{{ s.title }} <span class="artist">— {{ s.artist }}{% if s.year %} · {{ s.year }}{% endif %}</span>{% if discover %} <span class="vote"><button class="ok" data-id="{{ s.id }}" data-st="approved" title="keep">👍</button><button class="bad" data-id="{{ s.id }}" data-st="rejected" title="drop">👎</button></span>{% endif %}</li>{% endfor %}
     </ol>
   </div>
 </div>
@@ -33,5 +37,12 @@
     document.querySelectorAll('#queue li').forEach(li => li.classList.toggle('now', li.dataset.vid === v));
   }
   document.querySelectorAll('#queue li').forEach(li => li.onclick = () => { const i = ids.indexOf(li.dataset.vid); if (i >= 0 && player) player.playVideoAt(i); });
+  document.querySelectorAll('.vote button').forEach(b => b.onclick = async (ev) => {
+    ev.stopPropagation();
+    const body = new URLSearchParams({ status: b.dataset.st, back: '/discover' });
+    const r = await fetch(`/songs/${b.dataset.id}/status`, { method: 'POST', body });
+    if (r.ok) { const li = b.closest('li'); li.style.opacity = b.dataset.st === 'approved' ? 1 : .35; li.querySelector('.vote').textContent = b.dataset.st === 'approved' ? ' ✓ kept' : ' ✗ dropped'; }
+  });
 </script>
+<style> .vote button { padding:1px 6px; margin-left:4px; font-size:12px; } </style>
 {% endblock %}

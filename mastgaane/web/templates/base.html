@@ -38,9 +38,14 @@
 <body>
 <header>
   <h1>♪ MastGaane</h1>
+  <a href="/fm" class="{{ 'on' if request.url.path == '/fm' else '' }}">▶ FM</a>
   <a href="/" class="{{ 'on' if request.url.path == '/' else '' }}">Songs</a>
   <a href="/reels" class="{{ 'on' if request.url.path == '/reels' else '' }}">Reels</a>
   <a href="/playlist" class="{{ 'on' if request.url.path == '/playlist' else '' }}">Playlist &amp; Player</a>
+  <a href="/discover" class="{{ 'on' if request.url.path == '/discover' else '' }}">Discover</a>
+  <a href="/radio" class="{{ 'on' if request.url.path == '/radio' else '' }}">Radio</a>
+  <a href="/archive" class="{{ 'on' if request.url.path.startswith('/archive') else '' }}">Archive</a>
+  <a href="/naya" class="{{ 'on' if request.url.path == '/naya' else '' }}">Naya</a>
   <a href="/apple" class="{{ 'on' if request.url.path.startswith('/apple') else '' }}"> Apple Music</a>
 </header>
 <main>{% block body %}{% endblock %}</main>

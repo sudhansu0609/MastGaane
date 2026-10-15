@@ -60,15 +60,64 @@ Keep the PC logged in (screen lock is fine) — the task uses your interactive s
 can run headed. Set `HEADLESS=true` only after a week of clean headed runs; Instagram flags
 headless browsers more readily.
 
-## Only Hindi film songs, ghazals and folk
+## ▶ MastGaane FM — your jockey
+
+Open the **▶ FM** tab and press *Start*. It plays one endless channel:
+
+- your approved songs, weighted by what you like; every 4th item is a new find from Discover
+- old programmes in their time slots, loosely after the Vividh Bharati day: Sangeet Sarita and
+  Triveni in the morning, Bhoole Bisre Geet after lunch, Jaimala at 7 pm, Hawa Mahal at 8
+  (Geetmala on Wednesdays), Chhaya Geet late at night
+- a Hindi announcer between items: the local LLM writes the line while the previous song plays,
+  and a Microsoft neural voice reads it (`JOCKEY_VOICE=hi-IN-SwaraNeural` or `hi-IN-MadhurNeural`;
+  needs internet; untick *host voice* to turn it off)
+- **🎧 Audio** plays everything as ad-free audio served by this app, and works with the iPhone
+  screen locked. **📺 Video** plays music videos in the YouTube player, so YouTube ads may appear;
+  programmes always stay audio.
+
+It learns from you: ⏭ (skip), letting a song finish, 👍 and 👎 are stored (`play` table) and shift
+which singers, genres and programmes come up. 👍 also approves a new find, and 👎 rejects a song for good.
+
+Every night `run-all` also finds new songs, downloads a couple of new episodes per programme, and
+once a week builds **Naya kya hai** (`/naya`, or `uv run mastgaane digest`): your week in numbers,
+new finds, new episodes, one-tap rule suggestions (a singer you keep liking joins `folk_artists`),
+and a few ideas from the LLM.
+
+## Radio, Archive and Discover (web UI tabs)
+
+- **Radio** — live Vividh Bharati, AIR FM Gold, AIR Raagam, Bhojpuri and purane-gaane stations.
+  More are pulled from radio-browser.info weekly: `uv run mastgaane radio --refresh`.
+- **Archive** — old programmes without ads: Hawa Mahal, Chhaya Geet, Jaimala, Bhoole Bisre Geet,
+  Sangeet Sarita, Geetmala, Inse Miliye, Triveni. archive.org recordings play directly; YouTube
+  off-air uploads are fetched once with yt-dlp into `data/archive_audio/` and played from there.
+  Every episode shows its broadcast year when the title or archive.org has it, with filters by period
+  (before 1996 / 1996–2005 / 2006–2015 / 2016–now); extra searches look for old recordings.
+  FM rotates through the periods, so older episodes come up as often as recent uploads.
+- **Discover** — new songs like the ones you keep: `uv run mastgaane discover` starts YouTube Music
+  radios from your approved songs and a few singers in `rules.yaml`, classifies what it finds and
+  queues the keepers. 👍 / 👎 on the page; hand-approved songs are preferred as the next seeds.
+  `run-all` does this every night. No YouTube Music login is needed for this. `seed_queries` in
+  `rules.yaml` steers it — by default toward 1990s–2000s ghazals and Bhojpuri folk, while your
+  approved classics keep older songs coming. Songs show their release year (YouTube Music's album
+  year; a re-release can make it later).
+- `uv run mastgaane match` gives approved songs a YouTube match so the Playlist player can play them.
+- `uv run mastgaane reclassify` re-checks rejected/pending songs after you edit `rules.yaml` or change
+  `LLM_MODEL`; songs you approved or rejected yourself are never touched.
+
+## Only Hindi film songs, ghazals and Bhojpuri / Hindi-belt folk
 
 `rules.yaml` has two allow-lists the classifier enforces after the LLM labels each song:
 
 ```yaml
-allowed_languages: [hindi, urdu]        # language the song is SUNG in (captions are ignored)
-allowed_genres:    [film, ghazal, folk] # add sufi / classical / devotional / indie to widen
+allowed_languages: [hindi, urdu, bhojpuri, awadhi, maithili, magahi]  # language the song is SUNG in
+allowed_genres:    [film, ghazal, folk]  # add sufi / classical / devotional / indie to widen
+ghazal_artists:    [Jagjit Singh, Chitra Singh, ...]         # always kept as ghazal
+folk_artists:      [Sharda Sinha, Bharat Sharma Vyas, ...]   # always kept as folk
+folk_keywords:     [chhath, kajri, chaita, sohar, birha, nirgun, ...]
 ```
 
+The LLM only labels language and genre; it may not reject a song because the reel caption is
+unrelated. `gemma-4-12b` labelled 9/10 of a hand-checked set correctly, `qwen2.5:7b` 5/10.
 English, Punjabi, Tamil… songs are marked *rejected* with the reason shown in the UI. If no LLM
 is reachable, a script/romanised-Hindi heuristic decides language.
 

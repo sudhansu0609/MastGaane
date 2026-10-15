@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="nowbar">
+  <button id="stop" class="acc" disabled>■ Stop</button>
+  <div><div class="title" id="now">Pick a station</div><div class="artist" id="nowsub">Live radio — Vividh Bharati, AIR, Bhojpuri, purane gaane</div></div>
+  <audio id="audio" preload="none"></audio>
+</div>
+{% for group, items in groups %}
+<h3 class="grp">{{ group }}</h3>
+<div class="stations">
+  {% for st in items %}
+  <button class="station" data-url="{{ st.url }}" data-name="{{ st.name }}" data-note="{{ st.note }}">
+    <span class="title">{{ st.name }}</span>{% if st.note %}<span class="artist">{{ st.note }}</span>{% endif %}
+  </button>
+  {% endfor %}
+</div>
+{% endfor %}
+<p style="color:var(--dim);font-size:13px">Live stations carry ads. Ad-free Vividh Bharati programmes (Hawa Mahal, Chhaya Geet, Jaimala…) are coming in the Archive tab. More stations appear here after the station directory is reached — <code>uv run mastgaane radio --refresh</code>.</p>
+<style>
+  .nowbar { position:sticky; top:58px; z-index:1; display:flex; gap:14px; align-items:center; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-bottom:16px; }
+  .grp { color:var(--acc); font-size:14px; letter-spacing:.4px; margin:18px 0 8px; }
+  .stations { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:8px; }
+  .station { text-align:left; display:flex; flex-direction:column; gap:2px; padding:10px 12px; border-radius:10px; }
+  .station .artist { font-size:12px; }
+  .station.on { border-color:var(--acc); }
+  .station.on .title::before { content:"♪ "; color:var(--acc); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.13/dist/hls.min.js"></script>
+<script>
+  const audio = document.getElementById('audio'), now = document.getElementById('now'), sub = document.getElementById('nowsub'), stop = document.getElementById('stop');
+  let hls = null;
+  function play(btn) {
+    const url = btn.dataset.url;
+    if (hls) { hls.destroy(); hls = null; }
+    if (url.includes('.m3u8') && !audio.canPlayType('application/vnd.apple.mpegurl') && window.Hls && Hls.isSupported()) {
+      hls = new Hls(); hls.loadSource(url); hls.attachMedia(audio);
+    } else { audio.src = url; }
+    audio.play().catch(e => { sub.textContent = 'Could not start: ' + e.message; });
+    document.querySelectorAll('.station').forEach(b => b.classList.toggle('on', b === btn));
+    now.textContent = btn.dataset.name; sub.textContent = btn.dataset.note || 'connecting…'; stop.disabled = false;
+    try { localStorage.setItem('mg-radio', url); } catch (e) {}
+  }
+  audio.addEventListener('playing', () => { sub.textContent = (document.querySelector('.station.on')?.dataset.note || '') + ' · live'; });
+  audio.addEventListener('error', () => { sub.textContent = 'This station is not answering right now — try another.'; });
+  stop.onclick = () => { audio.pause(); if (hls) { hls.destroy(); hls = null; } audio.removeAttribute('src'); stop.disabled = true; now.textContent = 'Stopped';
+    document.querySelectorAll('.station').forEach(b => b.classList.remove('on')); };
+  document.querySelectorAll('.station').forEach(b => b.onclick = () => play(b));
+  try { const last = localStorage.getItem('mg-radio'); const b = last && [...document.querySelectorAll('.station')].find(x => x.dataset.url === last);
+        if (b) { now.textContent = b.dataset.name; sub.textContent = 'last played — tap to resume'; } } catch (e) {}
+</script>
+{% endblock %}

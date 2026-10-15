@@ -8,7 +8,7 @@ from ..config import settings
 from ..db import Reel, Run, Song, get_song_by_key, session, utcnow
 from .attribution import from_attribution
 from .audio import get_audio_clip
-from .classify import classify
+from .classify import classify, needs_review
 from .common import SongCandidate, norm_key
 from .llm import llm_available
 from .fingerprint import fingerprint
@@ -49,7 +49,7 @@ def _attach_song(s, reel: Reel, cand: SongCandidate, lyrics: str) -> Song:
         s.refresh(song)
         v = classify(song.title, song.artist, reel.caption, lyrics)
         song.keep, song.genre, song.language, song.classify_reason = v.keep, v.genre, v.language, v.reason
-        if v.keep and song.confidence >= settings.auto_approve_min_confidence:
+        if v.keep and song.confidence >= settings.auto_approve_min_confidence and not needs_review(v):
             song.status = "approved"
         elif not v.keep:
             song.status = "rejected"
@@ -58,7 +58,7 @@ def _attach_song(s, reel: Reel, cand: SongCandidate, lyrics: str) -> Song:
         song.last_seen = utcnow()
         if cand.confidence > song.confidence:
             song.confidence, song.source_tier = cand.confidence, cand.tier
-            if song.keep and song.status == "pending" and song.confidence >= settings.auto_approve_min_confidence:
+            if song.keep and song.status == "pending" and song.confidence >= settings.auto_approve_min_confidence and "[check] " not in song.classify_reason:
                 song.status = "approved"
     reel.song_id = song.id
     s.commit()

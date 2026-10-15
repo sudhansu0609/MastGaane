@@ -61,6 +61,7 @@ class Song(SQLModel, table=True):
     confidence: float = 0.0
     genre: str = ""  # film | ghazal | folk | sufi | classical | indie | devotional | other
     language: str = ""  # hindi | urdu | punjabi | english | ...
+    year: Optional[int] = None  # release year when YouTube Music knows it
     keep: Optional[bool] = None  # classifier verdict
     classify_reason: str = ""
     status: str = "pending"  # pending | approved | rejected
@@ -81,6 +82,21 @@ class PlaylistItem(SQLModel, table=True):
     playlist_id: str = ""
     track_id: str = ""
     synced_at: datetime = Field(default_factory=utcnow)
+
+
+class Play(SQLModel, table=True):
+    """One thing the listener heard (or skipped / liked) on MastGaane FM — the taste signal."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    kind: str  # song | episode
+    ref: str = Field(index=True)  # song:<id> | yt:<video id> | ia:<identifier>
+    title: str = ""
+    artist: str = ""
+    genre: str = ""
+    programme: str = ""  # archive slug for episodes
+    outcome: str = ""  # full | skip | like | dislike
+    listened_s: float = 0.0
+    duration_s: float = 0.0
+    at: datetime = Field(default_factory=utcnow, index=True)
 
 
 _engine = None
@@ -117,3 +133,15 @@ def session() -> Session:
 
 def get_song_by_key(s: Session, key: str) -> Optional[Song]:
     return s.exec(select(Song).where(Song.norm_key == key)).first()
+
+
+MANUAL = "you: "
+
+
+def set_manual_status(song: Song, status: str) -> None:
+    """Record a decision the listener made by hand; `reclassify` never overrides these."""
+    song.status = status
+    if status in ("approved", "rejected"):
+        song.keep = status == "approved"
+        reason = song.classify_reason.split("; ", 1)[1] if song.classify_reason.startswith(MANUAL) and "; " in song.classify_reason else song.classify_reason
+        song.classify_reason = f"{MANUAL}{status}; {reason}"

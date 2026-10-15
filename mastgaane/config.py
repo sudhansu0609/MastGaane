@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     # Playlists
     playlist_name: str = "MastGaane - Late Night"
     ytmusic_enabled: bool = True
+    # MastGaane FM announcer: hi-IN-SwaraNeural (female) or hi-IN-MadhurNeural (male)
+    jockey_voice: str = "hi-IN-SwaraNeural"
     ytmusic_auth_file: Path = ROOT / "browser.json"
     spotify_enabled: bool = False
     spotify_client_id: str = ""

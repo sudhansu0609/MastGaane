@@ -205,8 +205,11 @@ def _said(now: dict) -> dict:
     elif now["phase"] == "link" or not now["title"]:
         line = "MastGaane is starting" + (f" — {now['focus']}." if now["focus"] else ".")
     else:
-        what = f"{now['programme']}: {now['title']}" if now["kind"] == "episode" else \
-            f"{now['title']}" + (f" by {now['artist']}" if now["artist"] else "")
+        if now["kind"] == "episode":  # episode titles usually start with the programme's name already
+            named = now["title"].lower().startswith(now["programme"].lower())
+            what = now["title"] if named else f"{now['programme']}: {now['title']}"
+        else:
+            what = now["title"] + (f" by {now['artist']}" if now["artist"] else "")
         line = ("Paused: " if now["state"] == "paused" else "Playing ") + what + "."
     return {**now, "summary": line}
 

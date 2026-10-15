@@ -95,6 +95,7 @@ def test_player_plays_skips_likes_and_stops(db, monkeypatch):
     assert p.now()["title"].startswith("Ghazal")
 
     p.play("sharda sinha", talk=False)  # a new wish switches right away, without counting as a skip
+    assert not p.now()["title"].startswith("Ghazal")  # never reports the old song as playing
     assert wait_for(lambda: p.now()["artist"] == "Sharda Sinha")
     assert len(plays(db, "skip")) == 1
 

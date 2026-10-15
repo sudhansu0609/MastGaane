@@ -57,6 +57,7 @@ class Player:
             self.focus, self.talk, self.message = focus, talk, ""
             self._gen += 1
             self._upcoming = None
+            self.cur = None  # until the new pick lands, "now" must not name the old one
             if running:
                 self._command("switch")
                 return self.now()

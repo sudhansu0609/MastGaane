@@ -2,6 +2,25 @@
 
 Newest first. A row is **done** only with the evidence that proves it.
 
+## 2026-10-15 — Apple Music: real links, exact Shortcut lines, FM Apple mode
+
+Listener has an Apple Music subscription and wants both the playlist and FM playback there.
+The Apple route had never run (0 links). Odesli, the backup resolver, now answers
+`401 PUBLIC_API_ACCESS_DEPRECATED` — removed. iTunes Search took same-title songs by other singers
+(Dillagi — Khalid Khan → Rahat Fateh Ali Khan's).
+
+- `playlists/apple.py`: a hit needs the title and a shared credited name; second try with the title
+  alone; calls spaced 3.2 s (Apple's ~20/min limit). `Song.apple_id` (catalog id) and
+  `Song.apple_name` (Apple's spelling, used as the `import.txt` line). `/apple?resolve=1` runs in a
+  background thread.
+- `/fm`: " Apple Music" mode when `APPLE_DEV_TOKEN` is set — MusicKit JS v3 plays songs that have
+  an `apple_id`; programmes / unmatched songs stay on the ad-free audio. Needs the $99 Apple
+  Developer Program token: **not tested live**.
+
+**Evidence.** `pytest -q` → **44 passed** (+4 `tests/test_apple.py`). Live `mastgaane sync -t apple`:
+**108/121** approved songs linked, 13 no match, no 403s; `reports/apple_import.txt` 121 lines.
+DB backup: `data/mastgaane.before-apple-2026-10-15.db`.
+
 ## 2026-10-15 — Reclassify results; LLM-only regional labels go to review
 
 `reclassify` with gemma-4-12b flipped 46 songs to approved (Pardesi Pardesi, Dil Mera Tod Diya,

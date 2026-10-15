@@ -130,8 +130,13 @@ Run `uv run mastgaane setup apple` — it prints the steps with your PC's LAN ad
   in Apple Music (links resolved from the Indian storefront). For bulk import build the 3-action
   Shortcut once (Get Contents of URL `…/apple/import.txt` → Split Text → Repeat: Search Music →
   Add to Playlist) and run it whenever you like.
+  `uv run mastgaane sync -t apple` finds the links (iTunes Search API, ~3 s per song because Apple
+  allows ~20 searches a minute). A link counts only when the title *and* an artist agree; for a
+  matched song `import.txt` carries Apple's own spelling, so the Shortcut lands on that exact track.
 - **Apple Developer Program:** set `APPLE_DEV_TOKEN`, open `/apple/auth` once to authorize, and
-  `sync` creates/fills the playlist in your library via MusicKit.
+  `sync` creates/fills the playlist in your library via MusicKit. The token also adds an
+  ** Apple Music** mode to `/fm`: songs with an Apple match play in full from your subscription
+  (MusicKit JS); programmes and unmatched songs stay on the ad-free audio.
 
 ## How song identification works
 

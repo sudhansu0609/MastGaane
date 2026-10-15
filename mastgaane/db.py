@@ -71,6 +71,8 @@ class Song(SQLModel, table=True):
     yt_video_id: Optional[str] = None
     spotify_uri: Optional[str] = None
     apple_url: Optional[str] = None
+    apple_id: Optional[str] = None  # Apple Music catalog song id (MusicKit playback on FM)
+    apple_name: Optional[str] = None  # "Title - Artist" as Apple spells it (Shortcut search line)
     lyrics_snippet: str = Field(default="", sa_column=Column(Text))
 
 

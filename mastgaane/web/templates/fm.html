@@ -9,6 +9,7 @@
     <div class="modes">
       <button data-mode="audio" title="Audio only — no ads, works with the screen off">🎧 Audio</button>
       <button data-mode="video" title="Music videos (YouTube player; programmes stay audio)">📺 Video</button>
+      {% if apple_dev_token %}<button data-mode="apple" title="Full songs from your Apple Music subscription (programmes and unmatched songs stay audio)"> Apple Music</button>{% endif %}
     </div>
   </div>
 
@@ -55,12 +56,39 @@ const au = $('au');
 let mode = 'audio';
 try { mode = localStorage.getItem('mg-fm-mode') || 'audio'; } catch (e) {}
 let cur = null, upcoming = null, fetching = null, n = 0, phase = 'idle', yt = null, ytReady = false, startedAt = 0;
+let mk = null, via = 'au';  // via = what plays the current item: au | yt | apple
+const APPLE_TOKEN = {{ (apple_dev_token or '') | tojson }};
+
+// MusicKit loads only when Apple mode is chosen; authorize() needs that click, and remembers the sign-in.
+async function appleReady() {
+  if (mk && mk.isAuthorized) return true;
+  if (!APPLE_TOKEN) return false;
+  try {
+    if (!window.MusicKit) await new Promise((ok, bad) => {
+      document.addEventListener('musickitloaded', ok, { once: true });
+      const s = document.createElement('script'); s.src = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js'; s.async = true;
+      s.onerror = bad; document.head.appendChild(s);
+    });
+    mk = mk || await MusicKit.configure({ developerToken: APPLE_TOKEN, app: { name: 'MastGaane FM', build: '1' } });
+    if (!mk.isAuthorized) await mk.authorize();
+    mk.addEventListener('playbackStateDidChange', e => {
+      const S = MusicKit.PlaybackStates;
+      // a new queue can report the old song ending; only a song that played a while counts
+      if (via === 'apple' && phase === 'main' && (e.state === S.ended || e.state === S.completed) && Date.now() - startedAt > 3000) finish('full');
+    });
+    return mk.isAuthorized;
+  } catch (e) { $('kicker').textContent = 'Apple Music not connected: ' + (e.message || e); return false; }
+}
 
 function setMode(m) {
+  if (m === 'apple' && !APPLE_TOKEN) m = 'audio';
   mode = m; try { localStorage.setItem('mg-fm-mode', m); } catch (e) {}
   document.querySelectorAll('.modes button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
 }
-document.querySelectorAll('.modes button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+document.querySelectorAll('.modes button').forEach(b => b.onclick = async () => {
+  if (b.dataset.mode === 'apple' && !(await appleReady())) return;
+  setMode(b.dataset.mode);
+});
 setMode(mode);
 
 window.onYouTubeIframeAPIReady = () => {
@@ -97,8 +125,9 @@ function show(it) {
 async function playItem(it) {
   cur = it; show(it); startedAt = Date.now();
   $('upnext').textContent = '';
+  if (mk && via === 'apple') { try { await mk.stop(); } catch (e) {} }
   if (it.link_audio && $('talk').checked) {
-    phase = 'link'; $('ytwrap').hidden = true; au.src = it.link_audio;
+    phase = 'link'; via = 'au'; $('ytwrap').hidden = true; au.src = it.link_audio;
     try { await au.play(); return; } catch (e) {}
   }
   playMain();
@@ -107,9 +136,16 @@ async function playItem(it) {
 function playMain() {
   phase = 'main'; startedAt = Date.now();
   const video = mode === 'video' && cur.kind === 'song' && cur.yt && ytReady;
+  const apple = mode === 'apple' && cur.kind === 'song' && cur.apple_id && mk && mk.isAuthorized;
   $('ytwrap').hidden = !video;
-  if (video) { au.pause(); yt.loadVideoById(cur.yt); }
-  else { if (ytReady) yt.stopVideo(); $('kicker').textContent += ' · loading…'; au.src = cur.audio; au.play().catch(() => {}); }
+  const playAudio = () => { via = 'au'; if (ytReady) yt.stopVideo(); $('kicker').textContent += ' · loading…'; au.src = cur.audio; au.play().catch(() => {}); };
+  if (video) { via = 'yt'; au.pause(); yt.loadVideoById(cur.yt); }
+  else if (apple) {
+    via = 'apple'; au.pause(); if (ytReady) yt.stopVideo();
+    const asked = cur;
+    mk.setQueue({ song: cur.apple_id, startPlaying: true }).catch(() => { if (cur === asked) playAudio(); });
+  }
+  else playAudio();
   // line up the next one while this plays (gives the LLM time to write the next announcement)
   if (!upcoming) { const asked = cur; fetchNext().then(it => { if (cur === asked && !upcoming) { upcoming = it; $('upnext').textContent = 'अगला: ' + describe(it); } }).catch(() => {}); }
 }
@@ -120,10 +156,14 @@ au.addEventListener('error', () => { if (phase === 'main') { $('kicker').textCon
 
 function listened() {
   if (phase !== 'main') return 0;
+  if (via === 'apple') return mk.currentPlaybackTime || 0;
   if (!$('ytwrap').hidden && yt && yt.getCurrentTime) return yt.getCurrentTime();
   return au.currentTime || 0;
 }
-function duration() { return (!$('ytwrap').hidden && yt && yt.getDuration) ? yt.getDuration() : (au.duration || 0); }
+function duration() {
+  if (via === 'apple') return mk.currentPlaybackDuration || 0;
+  return (!$('ytwrap').hidden && yt && yt.getDuration) ? yt.getDuration() : (au.duration || 0);
+}
 
 function report(outcome) {
   if (!cur) return;
@@ -143,9 +183,14 @@ async function finish(outcome) {
 $('start').onclick = async () => {
   $('start').hidden = true; $('pause').hidden = false;
   $('title').textContent = 'tuning in…';
+  if (mode === 'apple' && !(await appleReady())) setMode('audio');  // remembered Apple mode: this click signs in
   try { playItem(await request(true)); } catch (e) { $('title').textContent = e.message; $('start').hidden = false; }
 };
 $('pause').onclick = () => {
+  if (via === 'apple' && phase === 'main') {
+    if (mk.isPlaying) { mk.pause(); $('pause').textContent = '▶ Play'; } else { mk.play(); $('pause').textContent = '⏸ Pause'; }
+    return;
+  }
   const ytOn = !$('ytwrap').hidden;
   const paused = ytOn ? yt.getPlayerState() !== YT.PlayerState.PLAYING : au.paused;
   if (paused) { ytOn ? yt.playVideo() : au.play(); $('pause').textContent = '⏸ Pause'; }

@@ -135,7 +135,8 @@ def archive_yt(video_id: str):
 # ----------------------------------------------------------------------------- MastGaane FM
 @app.get("/fm")
 def fm_page(request: Request):
-    return render(request, "fm.html")
+    # A MusicKit developer token is meant to sit in web pages; without one there is no Apple mode.
+    return render(request, "fm.html", apple_dev_token=settings.apple_dev_token)
 
 
 @app.get("/jockey/next")
@@ -237,23 +238,19 @@ def radio_page(request: Request):
 @app.get("/apple")
 def apple_page(request: Request, resolve: int = 0):
     """Phone page: approved songs with Apple Music links (+ Shortcut recipe)."""
-    from ..playlists.apple import AppleMusicAdapter, itunes_search
+    import threading
 
-    adapter = AppleMusicAdapter()
+    from ..playlists import apple
+
+    adapter = apple.AppleMusicAdapter()
+    if resolve and not apple.resolving():  # iTunes allows ~20 searches a minute: never inside the request
+        threading.Thread(target=apple.resolve_missing, daemon=True).start()
+        return RedirectResponse("/apple?msg=Finding+Apple+Music+links+in+the+background+(about+3+s+per+song)+-+reload+later", status_code=303)
     with session() as s:
         rows = s.exec(select(Song).where(Song.status == "approved").order_by(Song.first_seen.desc())).all()
-        if resolve:  # resolve missing links on demand (iTunes Search API, no key)
-            for song in rows:
-                if not song.apple_url:
-                    link = itunes_search(song.title, song.artist)
-                    if link:
-                        song.apple_url = link.url
-            s.commit()
-            for song in rows:
-                s.refresh(song)
     # The port we are actually on, not the one we usually take.
     port = request.url.port or bound_port()
-    return render(request, "apple.html", songs=rows, lan_url=f"http://{_lan_ip()}:{port}", musickit=adapter.musickit_ready(), dev_token=bool(settings.apple_dev_token))
+    return render(request, "apple.html", songs=rows, lan_url=f"http://{_lan_ip()}:{port}", musickit=adapter.musickit_ready(), dev_token=bool(settings.apple_dev_token), resolving=apple.resolving())
 
 
 @app.get("/apple/import.txt")

@@ -6,8 +6,7 @@ from sqlmodel import select
 
 from ..config import settings
 from ..db import PlaylistItem, Run, Song, session, utcnow
-from .apple import AppleMusicAdapter
-from .base import Track
+from .apple import AppleMusicAdapter, remember
 from .spotify import SpotifyAdapter
 from .youtube_music import YouTubeMusicAdapter
 
@@ -42,13 +41,6 @@ def sync(targets: list[str] | None = None) -> Run:
                     continue
                 try:
                     track = adapter.search(song.title, song.artist)
-                    if track is None and name == "apple" and song.yt_video_id and not adapter.musickit_ready():
-                        # iTunes search missed → cross-platform resolve from the YouTube match
-                        from .apple import odesli_apple_url
-
-                        url = odesli_apple_url(f"https://www.youtube.com/watch?v={song.yt_video_id}")
-                        if url:
-                            track = Track(id=url, title=song.title, artist=song.artist, url=url)
                     if track is None:
                         console.log(f"[yellow]{name}: no match for {song.title} — {song.artist}[/]")
                         continue
@@ -58,7 +50,7 @@ def sync(targets: list[str] | None = None) -> Run:
                     elif name == "spotify":
                         song.spotify_uri = track.id
                     elif name == "apple":
-                        song.apple_url = track.url
+                        remember(song, track)
                     s.add(PlaylistItem(song_id=song.id, target=name, playlist_id=playlist_id, track_id=track.id))
                     s.commit()
                     added_total += 1

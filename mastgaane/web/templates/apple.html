@@ -24,7 +24,8 @@
 
 <div class="filters">
   <b>{{ songs|length }} approved songs</b>
-  <a href="/apple?resolve=1">↻ resolve missing links</a>
+  <span class="artist">{{ songs|selectattr('apple_id')|list|length }} linked</span>
+  {% if resolving %}<span class="artist">finding links…</span>{% else %}<a href="/apple?resolve=1">↻ resolve missing links</a>{% endif %}
   <a href="/apple/import.txt" target="_blank">import.txt</a>
 </div>
 

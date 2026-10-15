@@ -140,13 +140,73 @@ def _episode_item(slug: str, exclude: set[str]) -> Item | None:
                 yt=e.id if e.source == "yt" else None, audio=audio, year=e.year)
 
 
-def pick(exclude: list[str] | None = None, n_picked: int = 0, now: datetime | None = None) -> Item | None:
+GENRE_WORDS = {"ghazal": "ghazal", "ghazals": "ghazal", "folk": "folk", "lok": "folk", "film": "film", "filmi": "film",
+               "bollywood": "film", "sufi": "sufi", "qawwali": "sufi", "classical": "classical", "bhajan": "devotional",
+               "bhajans": "devotional", "devotional": "devotional"}
+LANGUAGES = ("bhojpuri", "urdu", "awadhi", "maithili", "magahi", "hindi")
+FILLER = {"play", "some", "a", "an", "the", "songs", "song", "music", "by", "of", "from", "gaane", "gane", "geet", "ke", "ki",
+          "ka", "sunao", "chalao", "me", "please", "mastgaane", "on", "fm", "radio", "programme", "program"}
+
+
+def _n(s: str) -> str:
+    return "".join(ch for ch in s.lower() if ch.isalnum())
+
+
+def resolve_focus(focus: str) -> tuple[str, str]:
+    """What a spoken request asks for: ("any", ""), ("programme", slug), ("genre", g), ("language", l),
+    ("era", "old" | "1990s"…) or ("text", words to find in artist / title)."""
+    import re
+
+    f = focus.lower().strip()
+    if not f:
+        return ("any", "")
+    nf = _n(f)
+    for slug, p in archive.PROGRAMMES.items():
+        if any(_n(x) and _n(x) in nf for x in (slug, p.name, p.hindi, *p.aliases)):
+            return ("programme", slug)
+    words = re.findall(r"[\w']+", f)
+    for w in words:
+        if w in GENRE_WORDS:
+            return ("genre", GENRE_WORDS[w])
+        if w in LANGUAGES:
+            return ("language", w)
+    m = re.search(r"\b(?:19|20)?([0-9])0s\b", f)
+    if m:
+        d = int(m.group(1))
+        return ("era", f"{1900 + d * 10 if d >= 3 else 2000 + d * 10}s")
+    if any(w in ("old", "purane", "purana", "classic", "classics", "retro") for w in words):
+        return ("era", "old")
+    rest = " ".join(w for w in words if w not in FILLER)
+    return ("text", rest) if rest else ("any", "")
+
+
+def _matches(song: Song, focus: tuple[str, str]) -> bool:
+    kind, val = focus
+    if kind == "genre":
+        return song.genre == val
+    if kind == "language":
+        return song.language == val
+    if kind == "era":
+        if not song.year:
+            return False
+        return song.year < 1990 if val == "old" else int(val[:4]) <= song.year < int(val[:4]) + 10
+    if kind == "text":
+        q = _n(val)
+        return bool(q) and (q in _n(song.artist) or q in _n(song.title))
+    return True
+
+
+def pick(exclude: list[str] | None = None, n_picked: int = 0, now: datetime | None = None, focus: str = "") -> Item | None:
     """The next thing to play. `exclude` = refs already queued on the client; `n_picked` = how many
-    the client has had this session (drives the 1-in-4 discovery mix)."""
+    the client has had this session (drives the 1-in-4 discovery mix); `focus` = a spoken wish
+    ("ghazals", "Hawa Mahal", "Jagjit Singh", "90s") that narrows the choice — see resolve_focus()."""
     t = taste()
+    want = resolve_focus(focus)
     with session() as s:
         skip = _recent_refs(s) | set(exclude or [])
-        prog = slot(now)
+        if want[0] == "programme":
+            return _episode_item(want[1], set(exclude or []))
+        prog = slot(now) if want[0] == "any" else None
         if prog:
             since = utcnow() - timedelta(hours=20)
             done = s.exec(select(Play).where(Play.programme == prog, Play.at >= since)).first()
@@ -155,8 +215,14 @@ def pick(exclude: list[str] | None = None, n_picked: int = 0, now: datetime | No
                 if ep:
                     return ep
         want_new = n_picked % DISCOVERY_EVERY == DISCOVERY_EVERY - 1
-        new = [x for x in s.exec(select(Song).where(Song.status == "pending", Song.yt_video_id.is_not(None))).all() if f"song:{x.id}" not in skip]
-        kept = [x for x in s.exec(select(Song).where(Song.status == "approved", Song.yt_video_id.is_not(None))).all() if f"song:{x.id}" not in skip]
+        new = [x for x in s.exec(select(Song).where(Song.status == "pending", Song.yt_video_id.is_not(None))).all()
+               if f"song:{x.id}" not in skip and _matches(x, want)]
+        kept = [x for x in s.exec(select(Song).where(Song.status == "approved", Song.yt_video_id.is_not(None))).all()
+                if f"song:{x.id}" not in skip and _matches(x, want)]
+        if want[0] != "any" and not new and not kept:  # a narrow wish runs dry: repeats beat silence
+            exc = set(exclude or [])
+            kept = [x for x in s.exec(select(Song).where(Song.status == "approved", Song.yt_video_id.is_not(None))).all()
+                    if f"song:{x.id}" not in exc and _matches(x, want)]
         pools = [(new, True), (kept, False)] if want_new else [(kept, False), (new, True)]
         for pool, is_new in pools:
             if pool:
@@ -252,8 +318,9 @@ def _safe(fn, *a):
         console.log(f"[yellow]prefetch failed: {e}[/]")
 
 
-def next_item(exclude: list[str] | None = None, n_picked: int = 0, previous: str = "", talk: bool = True, use_llm: bool = True) -> Item | None:
-    item = pick(exclude, n_picked)
+def next_item(exclude: list[str] | None = None, n_picked: int = 0, previous: str = "", talk: bool = True, use_llm: bool = True,
+              focus: str = "") -> Item | None:
+    item = pick(exclude, n_picked, focus=focus)
     if item is None:
         return None
     prefetch_audio(item)

@@ -180,6 +180,67 @@ def jockey_voice(key: str):
     return FileResponse(path, media_type="audio/mpeg")
 
 
+# ----------------------------------------------------------------------------- PC player (Dexter, Alexa)
+_player = None
+
+
+def player():
+    global _player
+    if _player is None:
+        from ..player import Player
+
+        import atexit
+
+        _player = Player(lambda: f"http://127.0.0.1:{bound_port()}")
+        atexit.register(_player.stop)  # no orphan ffplay playing on after the server is gone
+    return _player
+
+
+def _said(now: dict) -> dict:
+    """The player state plus one sentence an assistant can speak."""
+    if now["message"] and now["state"] == "stopped":
+        line = now["message"]
+    elif now["state"] == "stopped":
+        line = "MastGaane is not playing."
+    elif now["phase"] == "link" or not now["title"]:
+        line = "MastGaane is starting" + (f" — {now['focus']}." if now["focus"] else ".")
+    else:
+        what = f"{now['programme']}: {now['title']}" if now["kind"] == "episode" else \
+            f"{now['title']}" + (f" by {now['artist']}" if now["artist"] else "")
+        line = ("Paused: " if now["state"] == "paused" else "Playing ") + what + "."
+    return {**now, "summary": line}
+
+
+class PlayRequest(BaseModel):
+    focus: str = ""
+    talk: bool = True
+
+
+@app.post("/api/player/play")
+def player_play(req: PlayRequest | None = None):
+    from ..player import ffplay_path
+
+    if not ffplay_path():
+        raise HTTPException(503, "ffplay (FFmpeg) is not installed on this PC")
+    req = req or PlayRequest()
+    return _said(player().play(req.focus[:120], talk=req.talk))
+
+
+@app.post("/api/player/{action}")
+def player_action(action: str):
+    p = player()
+    fn = {"pause": p.pause, "resume": p.resume, "next": p.skip, "skip": p.skip, "like": p.like,
+          "dislike": p.dislike, "stop": p.stop}.get(action)
+    if fn is None:
+        raise HTTPException(404, f"unknown player action {action!r}")
+    return _said(fn())
+
+
+@app.get("/api/player/now")
+def player_now():
+    return _said(player().now())
+
+
 @app.get("/jockey/audio/{video_id}")
 def jockey_audio(video_id: str):
     return archive_yt(video_id)

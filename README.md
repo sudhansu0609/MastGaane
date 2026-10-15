@@ -83,6 +83,17 @@ once a week builds **Naya kya hai** (`/naya`, or `uv run mastgaane digest`): you
 new finds, new episodes, one-tap rule suggestions (a singer you keep liking joins `folk_artists`),
 and a few ideas from the LLM.
 
+## On the PC speakers (Dexter / Alexa)
+
+`mastgaane serve` also runs the jockey on the PC itself — no browser, played by `ffplay` (FFmpeg).
+Dexter drives it over HTTP:
+
+| Route | Does |
+|---|---|
+| `POST /api/player/play` `{"focus": "ghazals", "talk": true}` | start, or switch to a wish: a genre (ghazal, folk, film…), a language (bhojpuri, urdu), an era (`90s`, `purane gaane`), a programme (`Hawa Mahal`) or a singer (`Jagjit Singh`); empty = the usual mix |
+| `POST /api/player/{pause,resume,next,like,dislike,stop}` | the remote control (like/dislike teach the same taste as `/fm`) |
+| `GET /api/player/now` | state + a `summary` sentence to speak |
+
 ## Radio, Archive and Discover (web UI tabs)
 
 - **Radio** — live Vividh Bharati, AIR FM Gold, AIR Raagam, Bhojpuri and purane-gaane stations.

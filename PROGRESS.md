@@ -2,6 +2,18 @@
 
 Newest first. A row is **done** only with the evidence that proves it.
 
+## 2026-10-15 — PC player for Dexter and Alexa
+
+Listener wants MastGaane on the PC, driven by their assistant Dexter (and Alexa through Dexter).
+`mastgaane/player.py`: the jockey loop with ffplay on the PC speakers (no window); pause =
+psutil suspend; `jockey.resolve_focus()` turns a spoken wish into genre / language / era /
+programme / singer. `/api/player/*` in the web app (see README).
+
+**Evidence.** `pytest -q` → **49 passed** (+5 `tests/test_player.py`, real subprocess kill/suspend).
+Live on 8788: play "ghazals" → Hindi link, then *Dillagi — Khalid Khan* (47 s heard); pause →
+ffplay CPU 0.0 s over 3 s (status `stopped`), resume; next → *Us Mod Se Shuroo Karen — Jagjit Singh*;
+stop → state stopped, 0 ffplay processes left.
+
 ## 2026-10-15 — FM Apple mode removed
 
 The listener does not want the Apple Developer Program token route, so the untested `/fm` MusicKit

@@ -2,6 +2,13 @@
 
 Newest first. A row is **done** only with the evidence that proves it.
 
+## 2026-10-15 — FM Apple mode removed
+
+The listener does not want the Apple Developer Program token route, so the untested `/fm` MusicKit
+mode is gone; FM stays on the ad-free audio. Apple links, `apple_id` and the Shortcut route remain.
+
+**Evidence.** `pytest -q` → **44 passed**; `/fm` has no Apple code (`grep -ci apple fm.html` → 0).
+
 ## 2026-10-15 — Apple Music: real links, exact Shortcut lines, FM Apple mode
 
 Listener has an Apple Music subscription and wants both the playlist and FM playback there.

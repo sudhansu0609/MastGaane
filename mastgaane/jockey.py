@@ -98,7 +98,6 @@ class Item(BaseModel):
     programme_name: str = ""
     yt: str | None = None  # YouTube id (songs in video mode, YouTube episodes)
     audio: str  # ad-free audio URL (local route or archive.org)
-    apple_id: str | None = None  # Apple Music catalog id (FM's Apple mode, needs MusicKit)
     discovery: bool = False
     year: int | None = None
     link_text: str = ""
@@ -107,7 +106,7 @@ class Item(BaseModel):
 
 def _song_item(song: Song, discovery: bool) -> Item:
     return Item(ref=f"song:{song.id}", kind="song", title=song.title, artist=song.artist, genre=song.genre,
-                yt=song.yt_video_id, audio=f"/jockey/audio/{song.yt_video_id}", apple_id=song.apple_id, discovery=discovery, year=song.year)
+                yt=song.yt_video_id, audio=f"/jockey/audio/{song.yt_video_id}", discovery=discovery, year=song.year)
 
 
 def _episode_item(slug: str, exclude: set[str]) -> Item | None:

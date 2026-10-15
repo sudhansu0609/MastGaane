@@ -134,9 +134,7 @@ Run `uv run mastgaane setup apple` — it prints the steps with your PC's LAN ad
   allows ~20 searches a minute). A link counts only when the title *and* an artist agree; for a
   matched song `import.txt` carries Apple's own spelling, so the Shortcut lands on that exact track.
 - **Apple Developer Program:** set `APPLE_DEV_TOKEN`, open `/apple/auth` once to authorize, and
-  `sync` creates/fills the playlist in your library via MusicKit. The token also adds an
-  ** Apple Music** mode to `/fm`: songs with an Apple match play in full from your subscription
-  (MusicKit JS); programmes and unmatched songs stay on the ad-free audio.
+  `sync` creates/fills the playlist in your library via MusicKit.
 
 ## How song identification works
 

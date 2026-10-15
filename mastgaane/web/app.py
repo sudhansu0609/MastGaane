@@ -135,8 +135,7 @@ def archive_yt(video_id: str):
 # ----------------------------------------------------------------------------- MastGaane FM
 @app.get("/fm")
 def fm_page(request: Request):
-    # A MusicKit developer token is meant to sit in web pages; without one there is no Apple mode.
-    return render(request, "fm.html", apple_dev_token=settings.apple_dev_token)
+    return render(request, "fm.html")
 
 
 @app.get("/jockey/next")

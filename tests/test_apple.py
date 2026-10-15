@@ -66,25 +66,13 @@ def test_resolve_missing_stores_id_and_apple_names(db, monkeypatch):
     assert lines == ["Woh Humse Khafa Hain - Udit Narayan & Shreya Ghoshal", "Dillagi - Khalid Khan"]  # unmatched: our own text
 
 
-def test_fm_apple_mode_only_with_a_token(db, monkeypatch):
+def test_apple_page_resolves_in_the_background(db, monkeypatch):
     from fastapi.testclient import TestClient
 
-    from mastgaane import config, jockey
     from mastgaane.playlists import apple
     from mastgaane.web.app import app
 
     c = TestClient(app)
-    monkeypatch.setattr(config.settings, "apple_dev_token", "")
-    assert 'data-mode="apple"' not in c.get("/fm").text
-    monkeypatch.setattr(config.settings, "apple_dev_token", "eyJ.test.token")
-    page = c.get("/fm").text
-    assert 'data-mode="apple"' in page and '"eyJ.test.token"' in page
-
-    with db.session() as s:
-        song = s.get(db.Song, 1)
-        song.apple_id = "123"
-        assert jockey._song_item(song, discovery=False).apple_id == "123"
-
     monkeypatch.setattr(apple, "resolve_missing", lambda: 0)
     r = c.get("/apple?resolve=1", follow_redirects=False)
     assert r.status_code == 303 and "background" in r.headers["location"]

@@ -11,6 +11,7 @@
   header { display:flex; gap:18px; align-items:center; padding:14px 22px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; }
   header h1 { font-size:18px; margin:0 12px 0 0; color:var(--acc); letter-spacing:.5px; }
   header a { color:var(--fg); text-decoration:none; opacity:.8; } header a.on, header a:hover { opacity:1; color:var(--acc); }
+  @media (max-width: 700px) { header { flex-wrap:wrap; gap:6px 14px; padding:10px 16px; } main { padding:14px 16px; } }
   main { padding:18px 22px; max-width:1200px; margin:0 auto; }
   .filters { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; color:var(--dim); }
   .filters a { color:var(--fg); text-decoration:none; padding:3px 9px; border:1px solid var(--line); border-radius:999px; }
@@ -39,6 +40,7 @@
 <header>
   <h1>♪ MastGaane</h1>
   <a href="/fm" class="{{ 'on' if request.url.path == '/fm' else '' }}">▶ FM</a>
+  <a href="/listen" class="{{ 'on' if request.url.path == '/listen' else '' }}">🎤 Listen</a>
   <a href="/" class="{{ 'on' if request.url.path == '/' else '' }}">Songs</a>
   <a href="/reels" class="{{ 'on' if request.url.path == '/reels' else '' }}">Reels</a>
   <a href="/playlist" class="{{ 'on' if request.url.path == '/playlist' else '' }}">Playlist &amp; Player</a>

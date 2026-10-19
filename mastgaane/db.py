@@ -57,14 +57,14 @@ class Song(SQLModel, table=True):
     title: str
     artist: str = ""
     norm_key: str = Field(index=True)
-    source_tier: int = 1  # 1 attribution | 2 fingerprint | 3 llm
+    source_tier: int = 1  # 1 attribution | 2 fingerprint | 3 llm | 4 discovered | 5 heard by you (Listen) | 6 library
     confidence: float = 0.0
     genre: str = ""  # film | ghazal | folk | sufi | classical | indie | devotional | other
     language: str = ""  # hindi | urdu | punjabi | english | ...
     year: Optional[int] = None  # release year when YouTube Music knows it
     keep: Optional[bool] = None  # classifier verdict
     classify_reason: str = ""
-    status: str = "pending"  # pending | approved | rejected
+    status: str = "pending"  # pending | approved | rejected | library (the big collection: library.py)
     times_seen: int = 1
     first_seen: datetime = Field(default_factory=utcnow)
     last_seen: datetime = Field(default_factory=utcnow)
@@ -74,6 +74,7 @@ class Song(SQLModel, table=True):
     apple_id: Optional[str] = None  # Apple Music catalog song id (MusicKit playback on FM)
     apple_name: Optional[str] = None  # "Title - Artist" as Apple spells it (Shortcut search line)
     lyrics_snippet: str = Field(default="", sa_column=Column(Text))
+    mood: str = ""  # "sad|romantic" … or "any" (see moods.py); "" = not tagged yet
 
 
 class PlaylistItem(SQLModel, table=True):
@@ -95,10 +96,23 @@ class Play(SQLModel, table=True):
     artist: str = ""
     genre: str = ""
     programme: str = ""  # archive slug for episodes
+    mood: str = ""  # the song's mood when it played (taste per mood)
     outcome: str = ""  # full | skip | like | dislike
     listened_s: float = 0.0
     duration_s: float = 0.0
     at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class Catch(SQLModel, table=True):
+    """A song the listener identified on the spot (Listen — Shazam inside MastGaane)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    at: datetime = Field(default_factory=utcnow, index=True)
+    song_id: Optional[int] = Field(default=None, foreign_key="song.id")
+    source: str = ""  # mic | pc | phone | shortcut
+    title: str = ""
+    artist: str = ""
+    cover_url: str = ""
+    shazam_url: str = ""
 
 
 _engine = None
@@ -119,6 +133,11 @@ def _migrate(eng) -> None:
 
     insp = inspect(eng)
     with eng.begin() as conn:
+        # v15: mood columns, additive only; existing rows read "" (= not tagged yet)
+        for table in ("song", "play"):
+            if insp.has_table(table) and "mood" not in {c["name"] for c in insp.get_columns(table)}:
+                conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN "mood" VARCHAR NOT NULL DEFAULT \'\''))
+        insp = inspect(conn)
         for table in SQLModel.metadata.sorted_tables:
             if not insp.has_table(table.name):
                 continue

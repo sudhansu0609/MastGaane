@@ -38,6 +38,9 @@ class Programme:
     yt_queries: list[str]
     ia_query: str = ""
     exclude: list[str] = field(default_factory=list)
+    spoken: list[str] = field(default_factory=list)  # what a request may say ("horror", "bhoot") — never matched to titles
+    intro: list[str] = field(default_factory=list)  # the host's own lines for it ({name}, {title}); else the general ones
+    vintage: bool = True  # an old radio programme: also search for its 1990s/2000s off-air recordings
 
 
 @dataclass
@@ -113,6 +116,29 @@ PROGRAMMES: dict[str, Programme] = {
         "Triveni", "त्रिवेणी", "Morning programme: three songs woven around one thought, ~15 min",
         ["triveni", "त्रिवेणी"],
         ["triveni vividh bharati", "त्रिवेणी विविध भारती"], ""),
+    # horror for the late night — before Khooni Monday: "english horror" names both
+    "radio-horror": Programme(
+        "Classic Radio Horror", "अंग्रेज़ी रेडियो की डरावनी कहानियाँ",
+        "American radio horror plays of the 1940s–50s in English: Inner Sanctum, Quiet Please, Lights Out, "
+        "The Mysterious Traveler, The Witch's Tale; ~30 min",
+        ["quiet please", "lights out", "inner sanctum", "witch's tale", "witchs tale", "mysterious traveler"], [],
+        '(title:"quiet please" OR title:"lights out" OR title:"inner sanctum" OR title:"witch\'s tale" '
+        'OR title:"mysterious traveler") AND (otr OR "old time radio" OR radio)',
+        exclude=["episode guide", "log", "script"],
+        spoken=["english horror", "angrezi horror", "english bhoot", "old time radio", "inner sanctum", "quiet please"],
+        intro=["अब ज़रा पुराने अंग्रेज़ी रेडियो की एक डरावनी कहानी… {title}। बत्तियाँ धीमी कर लीजिए!",
+               "रात गहरी है… सुनिए {name} — {title}।"],
+        vintage=False),
+    "khooni-monday": Programme(
+        "Khooni Monday", "ख़ूनी मंडे", "Hindi horror stories told as audio, many of them 'सच्ची कहानी' "
+        "(listeners' true accounts); ~10–60 min",
+        ["khooni monday", "ख़ूनी मंडे", "खूनी मंडे"],
+        ["khooni monday", "khooni monday horror stories in hindi", "khooni monday podcast"], "",
+        exclude=["trailer", "teaser", "promo", "rap song", "rap video", "raps", "music video", "react"],  # its raps are songs
+        spoken=["horror", "bhoot", "darawni", "daravni", "chudail", "हॉरर", "भूत", "डरावनी", "चुड़ैल"],
+        intro=["बत्तियाँ धीमी कर लीजिए… अब वक़्त है {name} का! सुनिए — {title}।",
+               "दिल थाम के बैठिए… आज की डरावनी कहानी — {title}।"],
+        vintage=False),
 }
 
 
@@ -139,7 +165,8 @@ def _yt_search(p: Programme, limit: int = 40) -> list[Episode]:
     from ytmusicapi import YTMusic
 
     yt, out, seen = YTMusic(), [], set()
-    for q in p.yt_queries + old_queries(p):
+    old = old_queries(p) if p.vintage else []
+    for q in p.yt_queries + old:
         try:
             hits = yt.search(q, filter="videos", limit=40)
         except Exception:
@@ -150,7 +177,7 @@ def _yt_search(p: Programme, limit: int = 40) -> list[Episode]:
                 seen.add(vid)
                 out.append(Episode("yt", vid, title, h.get("duration") or "", year_of(title)))
     # yt-dlp finds the listener uploads YouTube Music misses — always for the old-recording queries
-    out += _ytdlp_search(p, old_queries(p) + (p.yt_queries if len(out) < 15 else []), seen, limit)
+    out += _ytdlp_search(p, old + (p.yt_queries if len(out) < 15 else []), seen, limit)
     return out[:limit]
 
 

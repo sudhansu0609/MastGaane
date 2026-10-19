@@ -103,6 +103,40 @@ def test_player_plays_skips_likes_and_stops(db, monkeypatch):
     assert wait_for(lambda: p.now()["state"] == "stopped")
 
 
+def test_mute_keeps_the_show_going_silently(db, monkeypatch):
+    from mastgaane.player import Player
+
+    fake_ffplay(monkeypatch, 30)
+    p = Player(lambda: "http://127.0.0.1:1")
+    held = []
+    monkeypatch.setattr(p._volume, "hold", lambda pid, level: held.append(level))
+    p.play("ghazals", talk=False)
+    assert wait_for(lambda: p.now()["phase"] == "main")
+    assert held[-1] == 1.0 and p.now()["muted"] is False
+
+    now = p.mute()
+    assert now["muted"] and now["state"] == "playing" and held[-1] == 0.0  # not paused: it plays on, unheard
+    p.duck()  # a voice command, Dexter talking: still nothing
+    assert held[-1] == 0.0
+    p.duck(None)
+    assert held[-1] == 0.0
+    first = p.now()["title"]
+    p.skip()  # the next song starts muted too
+    assert wait_for(lambda: p.now()["phase"] == "main" and p.now()["title"] != first)
+    assert held[-1] == 0.0 and p.now()["muted"]
+
+    assert p.unmute()["muted"] is False and held[-1] == 1.0
+    p.mute(None)  # the tray's toggle
+    assert p.now()["muted"] and held[-1] == 0.0
+    p.resume()  # asked to play: to be heard
+    assert not p.now()["muted"] and held[-1] == 1.0
+    p.mute()
+    p.play("folk", talk=False)
+    assert not p.now()["muted"]
+    p.stop()
+    assert wait_for(lambda: p.now()["state"] == "stopped")
+
+
 def test_player_counts_a_full_listen(db, monkeypatch):
     from mastgaane.player import Player
 
@@ -127,6 +161,133 @@ def test_player_api(db, monkeypatch):
     assert r["state"] == "playing" and r["focus"] == "ghazals"
     assert wait_for(lambda: c.get("/api/player/now").json()["summary"].startswith("Playing Ghazal"))
     assert c.post("/api/player/pause").json()["summary"].startswith("Paused: Ghazal")
+    muted = c.post("/api/player/mute").json()
+    assert muted["muted"] and muted["summary"].startswith("Muted. ")
+    assert c.post("/api/player/unmute").json()["muted"] is False
     assert c.post("/api/player/bogus").status_code == 404
     c.post("/api/player/stop")
     assert wait_for(lambda: c.get("/api/player/now").json()["state"] == "stopped")
+
+
+def test_player_plays_a_mood(db, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from mastgaane.web import app as web
+
+    fake_ffplay(monkeypatch, 30)
+    monkeypatch.setattr(web, "_player", None)
+    c = TestClient(web.app)
+    r = c.post("/api/player/play", json={"focus": "something sad", "talk": False, "links": "never"}).json()
+    assert r["wish"] == "sad songs" and r["summary"] == "MastGaane is starting — sad songs."
+    assert wait_for(lambda: c.get("/api/player/now").json()["summary"].startswith("Playing Ghazal"))
+    now = c.get("/api/player/now").json()
+    assert now["summary"].endswith("(sad songs).") and "sad" in now["mood"]
+    c.post("/api/player/like")
+    assert "sad" in plays(db, "like")[0].mood
+    assert c.post("/api/player/play", json={"focus": "x", "links": "sometimes"}).status_code == 400
+    c.post("/api/player/stop")
+    assert wait_for(lambda: c.get("/api/player/now").json()["state"] == "stopped")
+
+
+def test_vocabulary_endpoint(db):
+    from fastapi.testclient import TestClient
+
+    from mastgaane.web import app as web
+
+    v = TestClient(web.app).get("/api/player/vocabulary").json()
+    assert set(v) == {"programmes", "artists", "moods", "times"}
+    hawa = next(p for p in v["programmes"] if p["slug"] == "hawa-mahal")
+    assert hawa["name"] == "Hawa Mahal" and hawa["hindi"] == "हवा महल" and "hawamahal" in hawa["aliases"]
+    assert set(v["artists"]) == {"Jagjit Singh", "Sharda Sinha"}
+    assert "udaas" in v["moods"] and "late night" in v["times"]
+
+
+def _fake_ps(monkeypatch, models):
+    import httpx
+
+    from mastgaane.resolver import llm
+
+    def get(url, timeout=None):
+        assert url.endswith("/api/ps"), url  # nothing but the "what is loaded" probe
+        return httpx.Response(200, json={"models": models}, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(llm.httpx, "get", get)
+
+
+def test_resident_links_never_load_a_model(db, monkeypatch):
+    from mastgaane import config, jockey
+    from mastgaane.resolver import llm
+
+    monkeypatch.setattr(config.settings, "llm_provider", "auto")
+    monkeypatch.setattr(config.settings, "jockey_llm_links", "resident")
+    monkeypatch.setattr(config.settings, "jockey_talk_every", 1)  # a link before every pick
+    monkeypatch.setattr(jockey, "speak", lambda text, *a, **k: "0" * 20)
+    calls = []
+    monkeypatch.setattr(llm, "_ollama_json", lambda *a, **k: calls.append(k) or jockey.Link(text="एक लिंक जो एलएलएम ने लिखा"))
+    monkeypatch.setattr(llm, "providers", lambda: calls.append("providers") or ["ollama"])
+
+    _fake_ps(monkeypatch, [])  # nothing loaded → template, no LLM call at all
+    item = jockey.next_item(n_picked=1, talk=True, use_llm=True, focus="ghazals")
+    assert item.link_text and calls == []
+
+    _fake_ps(monkeypatch, [{"name": "gemma4:e4b-it-qat", "context_length": 4096,
+                            "expires_at": "2099-01-01T00:00:00+00:00"}])
+    item = jockey.next_item(n_picked=1, talk=True, use_llm=True, focus="ghazals")
+    assert item.link_text == "एक लिंक जो एलएलएम ने लिखा"
+    assert calls == [{"model": "gemma4:e4b-it-qat"}]  # the resident model, never the provider chain
+
+    calls.clear()
+    jockey.next_item(n_picked=1, talk=True, use_llm=True, focus="ghazals", links="never")
+    assert calls == []
+
+
+def test_resident_call_keeps_the_models_context_and_keep_alive(monkeypatch):
+    import httpx
+
+    from mastgaane import jockey
+    from mastgaane.resolver import llm
+
+    _fake_ps(monkeypatch, [{"name": "gemma4:e4b-it-qat", "context_length": 8192, "expires_at": "2999-01-01T00:00:00+00:00"}])
+    seen = {}
+
+    def post(url, json, timeout):
+        seen.update(json)
+        return httpx.Response(200, json={"message": {"content": '{"text": "नमस्ते दोस्तों"}'}}, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr(llm.httpx, "post", post)
+    assert llm.complete_json("s", "u", jockey.Link, model="gemma4:e4b-it-qat").text == "नमस्ते दोस्तों"
+    assert seen["model"] == "gemma4:e4b-it-qat" and seen["options"]["num_ctx"] == 8192 and seen["keep_alive"] == -1
+
+
+def test_a_wish_nothing_matches_falls_back_to_the_mix(db, monkeypatch):
+    """v0.9: 'play me Harman Chali' used to end the show with "Nothing to play". An autonomous radio
+    never answers with silence: the host says the wish was not found and the usual mix goes on."""
+    from mastgaane import jockey
+    from mastgaane.player import Player
+
+    fake_ffplay(monkeypatch, 30)
+    spoken = []
+    monkeypatch.setattr(jockey, "speak", lambda text, emotion="warm", **kw: spoken.append(text) or None)
+    p = Player(lambda: "http://127.0.0.1:1")
+    p.play("harman chali", talk=True)
+    assert wait_for(lambda: p.now()["phase"] == "main")
+    now = p.now()
+    assert now["state"] == "playing" and now["title"]
+    assert now["fell_back_from"] == "harman chali" and now["focus"] == ""
+    assert "harman chali" in now["message"] and "usual mix" in now["message"]
+    assert spoken and "harman chali" in spoken[-1] and "नहीं मिला" in spoken[-1]
+    p.stop()
+    assert wait_for(lambda: p.now()["state"] == "stopped")
+
+
+def test_a_new_wish_clears_the_fallback_note(db, monkeypatch):
+    from mastgaane.player import Player
+
+    fake_ffplay(monkeypatch, 30)
+    p = Player(lambda: "http://127.0.0.1:1")
+    p.play("harman chali", talk=False)
+    assert wait_for(lambda: p.now()["fell_back_from"] == "harman chali")
+    p.play("ghazals", talk=False)
+    assert wait_for(lambda: p.now()["artist"] == "Jagjit Singh")
+    assert p.now()["fell_back_from"] == ""
+    p.stop()

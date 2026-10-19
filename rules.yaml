@@ -10,12 +10,24 @@ allowed_languages:
   - awadhi
   - maithili
   - magahi
+  # folk of the wider Hindi belt (18 Oct)
+  - braj
+  - rajasthani
+  - haryanvi
+  - garhwali
+  - kumaoni
 
 # film = Bollywood / Hindi film songs, ghazal, folk. Add "sufi", "classical", "devotional", "indie" to widen.
 allowed_genres:
   - film
   - ghazal
   - folk
+  # bhajans, for MastGaane FM's mornings
+  - devotional
+  # Hindi pop (Lucky Ali, Adnan Sami), qawwali / sufi, classical-based (18 Oct: "I want the Hindi ones")
+  - indie
+  - sufi
+  - classical
 
 # Always kept as ghazals.
 ghazal_artists:
@@ -88,6 +100,31 @@ seed_queries:
   - Bhojpuri nirgun bhajan
   - Kalpana Patowary Bhojpuri folk
 
+# Searches that fill each part of the day for MastGaane FM (morning bhakti, ghazals at night…).
+# `mastgaane discover --time morning` runs them; the nightly run-all tops up any part of the day
+# with fewer than 25 songs that suit it.
+time_seeds:
+  morning:
+    - Anup Jalota bhajan
+    - Hari Om Sharan bhajan
+    - Lata Mangeshkar bhajan
+    - Jagjit Singh bhajan
+    - Anuradha Paudwal bhajan
+    - Purane Hindi bhajan
+    - Sharda Sinha bhakti geet
+    - Pandit Jasraj bhajan
+  afternoon:
+    - Kishore Kumar happy songs
+    - Old Hindi cheerful songs
+    - Bhojpuri lokgeet purane
+  evening:
+    - Lata Rafi romantic duets
+    - 90s romantic Hindi songs
+  night:
+    - Jagjit Singh ghazal
+    - Ghulam Ali ghazal
+    - Mehdi Hassan ghazal
+
 # Always kept (film songs unless the title says ghazal).
 always_keep_artists:
   - Jagjit Singh
@@ -140,3 +177,418 @@ keep_keywords:
   - melod
   - bollywood
   - lofi
+
+# The big collection the jockey plays from (`uv run mastgaane library`; `--stats` shows it). Filled from
+# YouTube Music — each singer's / composer's songs and albums, at most their number of kept songs — then the
+# playlist searches, in turns; labelled by the local LLM (language sung, genre, mood, year) and gated by
+# allowed_languages / allowed_genres above. Nearly all from before 2010: at most `modern_max` from 2010 on
+# in the whole collection, your own songs included. Run it again to carry on, or after editing this list.
+library:
+  target: 35000  # raised 19 Oct ("raise the target"); 25000 was reached and was the limiter
+  modern_max: 1500  # film songs from 2010 on; folk and bhajans never count
+  per_artist: 150
+  per_playlist: 250
+  artists:
+    # the golden age, 1940s–1970s
+    Mohammed Rafi: 1560
+    Lata Mangeshkar: 1430
+    Kishore Kumar: 1300
+    Asha Bhosle: 780
+    Mukesh: 650
+    Manna Dey: 460
+    Talat Mahmood: 320
+    Hemant Kumar: 260
+    Geeta Dutt: 200
+    Shamshad Begum: 100
+    Suraiya: 60
+    Noor Jehan: 50
+    K. L. Saigal: 60
+    Mahendra Kapoor: 260
+    Suman Kalyanpur: 130
+    Bhupinder Singh: 200
+    Yesudas: 100
+    Sulakshana Pandit: 35
+    Hemlata: 40
+    # the composers: their films' songs
+    R. D. Burman: 580
+    S. D. Burman: 390
+    Laxmikant-Pyarelal: 520
+    Shankar-Jaikishan: 460
+    Madan Mohan: 290
+    Naushad: 290
+    O. P. Nayyar: 260
+    Kalyanji-Anandji: 320
+    Khayyam: 170
+    Roshan: 130
+    Salil Chowdhury: 100
+    Chitragupta: 80
+    Rajesh Roshan: 100
+    Bappi Lahiri: 100
+    # the 1980s–2000s
+    Kumar Sanu: 460
+    Udit Narayan: 460
+    Alka Yagnik: 460
+    Kavita Krishnamurthy: 200
+    Anuradha Paudwal: 200
+    Sadhana Sargam: 140
+    Abhijeet Bhattacharya: 130
+    Mohammed Aziz: 100
+    Suresh Wadkar: 160
+    Amit Kumar: 80
+    Shabbir Kumar: 35
+    S. P. Balasubrahmanyam: 60
+    Nitin Mukesh: 35
+    Shailendra Singh: 30
+    Vinod Rathod: 30
+    Sonu Nigam: 290
+    KK: 120
+    Shaan: 100
+    Sukhwinder Singh: 50
+    Roop Kumar Rathod: 80
+    Jaspinder Narula: 25
+    Lucky Ali: 50
+    Shreya Ghoshal: 160
+    Sunidhi Chauhan: 90
+    Kailash Kher: 35
+    Nadeem-Shravan: 260
+    Jatin-Lalit: 170
+    Anu Malik: 140
+    A. R. Rahman: 170
+    Vishal-Shekhar: 60
+    Shankar-Ehsaan-Loy: 80
+    Ravindra Jain: 130
+    Anand-Milind: 100
+    Raamlaxman: 35
+    Usha Khanna: 80
+    Shiv-Hari: 30
+    Viju Shah: 30
+    Ismail Darbar: 30
+    Vishal Bhardwaj: 30
+    Uttam Singh: 25
+    Himesh Reshammiya: 50
+    Pritam: 100
+    Shankar Mahadevan: 40
+    Kunal Ganjawala: 30
+    Adnan Sami: 50
+    Atif Aslam: 35
+    Mohit Chauhan: 35
+    Javed Ali: 30
+    Babul Supriyo: 30
+    Sapna Mukherjee: 25
+    Mahalakshmi Iyer: 25
+    # ghazals
+    Jagjit Singh: 650
+    Ghulam Ali: 390
+    Mehdi Hassan: 320
+    Pankaj Udhas: 320
+    Talat Aziz: 160
+    Chitra Singh: 100
+    Begum Akhtar: 130
+    Farida Khanum: 80
+    Iqbal Bano: 60
+    Chandan Dass: 80
+    Hariharan: 260
+    Ahmed & Mohammed Hussain: 100
+    Penaz Masani: 60
+    # more ghazal singers (18 Oct)
+    Bhupinder Mitali: 80
+    Mitali Singh: 40
+    Rajendra Mehta: 50
+    Nayyara Noor: 50
+    Tina Sani: 40
+    Salma Agha: 40
+    Jaswinder Singh: 40
+    Vinod Sehgal: 30
+    Shishir Parkhie: 30
+    Ustad Amanat Ali Khan: 35
+    Asad Amanat Ali Khan: 30
+    Ghulam Abbas: 30
+    Pankaj Udhas Ghazals: 50
+    Jagjit Singh Chitra Singh: 50
+    # bhajans, for the mornings
+    Anup Jalota: 260
+    Hari Om Sharan: 120
+    Narendra Chanchal: 60
+    Pandit Jasraj: 40
+    Gulshan Kumar: 50
+    Lakhbir Singh Lakkha: 60
+    # folk of the Hindi belt
+    Sharda Sinha: 320
+    Malini Awasthi: 160
+    Bharat Sharma Vyas: 260
+    Chandan Tiwari: 160
+    Kalpana Patowary: 160
+    Manoj Tiwari: 650
+    # the golden age, deeper (18 Oct: "more songs of golden era artists")
+    Sudha Malhotra: 40
+    Meena Kapoor: 25
+    Zohrabai Ambalewali: 30
+    Amirbai Karnataki: 30
+    Rajkumari: 30
+    Subir Sen: 25
+    Kamal Barot: 25
+    Sharda: 35
+    Jagjit Kaur: 20
+    Khemchand Prakash: 35
+    Ghulam Haider: 30
+    Hansraj Behl: 35
+    Bulo C. Rani: 25
+    S. N. Tripathi: 40
+    Dattaram: 30
+    N. Dutta: 35
+    Iqbal Qureshi: 25
+    G. S. Kohli: 25
+    Hemant Bhosle: 20
+    # more of the golden age and after (18 Oct: 15,000 songs)
+    Ravi: 160
+    C. Ramchandra: 160
+    Anil Biswas: 100
+    Jaidev: 100
+    Ghulam Mohammed: 80
+    Vasant Desai: 60
+    Husnlal-Bhagatram: 60
+    Sajjad Hussain: 25
+    Sonik-Omi: 30
+    Sapan Jagmohan: 30
+    Usha Mangeshkar: 100
+    Mubarak Begum: 50
+    Minoo Purushottam: 25
+    Anwar: 40
+    Manhar Udhas: 50
+    Sudesh Bhosle: 40
+    Alisha Chinai: 40
+    Poornima: 30
+    Richa Sharma: 30
+    Aadesh Shrivastava: 40
+    Dilip Sen-Sameer Sen: 30
+    Arijit Singh: 100
+    Rahat Fateh Ali Khan: 80
+    Shafqat Amanat Ali: 35
+    Papon: 30
+    Jubin Nautiyal: 40
+    Armaan Malik: 35
+    # qawwali and sufi
+    Nusrat Fateh Ali Khan: 100
+    Sabri Brothers: 40
+    Abida Parveen: 60
+    Wadali Brothers: 50
+    Aziz Mian: 30
+    Habib Wali Mohammad: 60
+    Munni Begum: 80
+    # classical-based and bhajans
+    Bhimsen Joshi: 35
+    Kumar Gandharva: 25
+    Kishori Amonkar: 25
+    Vinod Agarwal: 40
+    Anuradha Paudwal Bhajans: 50
+    # Bhojpuri lokgeet: lots of it (18 Oct)
+    Madan Rai: 130
+    Bhikhari Thakur: 40
+    Vindhyavasini Devi: 50
+    Devi: 100
+    Gopal Rai: 80
+    Tarabano Faizabadi: 40
+    Balesar Yadav: 40
+    Mohan Rathore: 50
+    Nitu Chandra Srivastava: 40
+    Vijaya Bharti: 40
+    Kavita Paudwal: 30
+    Ajit Kumar Akela: 40
+    Brij Kishor Dubey: 30
+    Anjali Bharti: 30
+    Indu Sonali: 60
+    Priyanka Singh: 40
+    Pawan Singh: 260
+    Khesari Lal Yadav: 160
+    Dinesh Lal Yadav: 100
+    Ritesh Pandey: 80
+    Maithili Thakur: 80
+    Kunj Bihari Mishra: 30
+    # more good Bhojpuri singers (18 Oct: "Pawan Singh and other good Bhojpuri folk singers")
+    Pramod Premi Yadav: 60
+    Arvind Akela Kallu: 60
+    Rakesh Mishra: 60
+    Neelkamal Singh: 60
+    Ankush Raja: 50
+    Gunjan Singh: 50
+    Samar Singh: 50
+    Alok Kumar: 50
+    Shilpi Raj: 50
+    Anu Dubey: 60
+    Khushboo Uttam: 50
+    Pawan Singh Bhakti: 50
+    Nirahua Lokgeet: 40
+    Guddu Rangila: 40
+    Vijay Lal Yadav: 40
+    Sunil Chhaila Bihari: 40
+    Bhai Ankush Raja: 20
+    Kalpana Bhojpuri Lokgeet: 30
+    # Rajasthani, a few
+    Mame Khan: 50
+    Ila Arun: 50
+    Seema Mishra: 60
+    Prakash Gandhi: 40
+    Allah Jilai Bai: 30
+    Sadiq Khan Langa: 30
+    Gazi Khan Barna: 25
+    Swaroop Khan: 30
+    Anwar Khan Manganiyar: 25
+    # Haryanvi, Garhwali, Kumaoni, a few
+    Master Satbir: 30
+    Rajbala Bahadurgarh: 25
+    Narendra Singh Negi: 50
+    Gopal Babu Goswami: 35
+    Meena Rana: 25
+    Pritam Bhartwan: 25
+  playlists:
+    - old hindi songs evergreen
+    - 50s 60s hindi film songs
+    - 70s bollywood hits
+    - 80s hindi songs
+    - 90s bollywood romantic songs
+    - 2000s bollywood hits
+    - old hindi sad songs
+    - purane bhajan
+    - hindi ghazals collection
+    - bhojpuri purane lokgeet
+    - lata rafi romantic duets
+    - kishore kumar sad songs
+    - mukesh sad songs
+    - old hindi romantic songs
+    - 90s hindi sad songs
+    - 2000s hindi romantic songs
+    - old hindi happy songs
+    - hindi dance songs 70s 80s
+    - rain songs old hindi
+    - holi songs bollywood old
+    - old hindi patriotic songs
+    - bollywood qawwali old
+    - pankaj udhas ghazals
+    - mehdi hassan ghazals
+    - anup jalota bhajans
+    - shiv bhajan old
+    - krishna bhajan hindi
+    - morning bhajan hindi
+    - chhath geet sharda sinha
+    - bhojpuri vivah geet
+    # ghazals and the great voices, deeper (18 Oct)
+    - best ghazals of all time
+    - ghazals 80s
+    - film ghazals old hindi
+    - jagjit chitra singh duets
+    - talat aziz ghazals
+    - chandan dass ghazals
+    - hariharan ghazals
+    - asha bhosle ghazals
+    - lata mangeshkar ghazals
+    - mohammed rafi ghazals
+    - ghulam ali asha bhosle meraj e ghazal
+    - mehdi hassan film ghazals
+    - pakistani ghazals old
+    - bhupinder singh songs
+    - bhupinder mitali ghazals
+    - mohammed rafi hits 70s
+    - mohammed rafi romantic songs
+    - mohammed rafi bhajans
+    - rafi naushad songs
+    - rafi o p nayyar songs
+    - rafi shankar jaikishan songs
+    - rafi laxmikant pyarelal songs
+    - rafi asha bhosle duets
+    - talat mahmood ghazals
+    - hemant kumar sad songs
+    - manna dey classical songs
+    - mukesh raj kapoor songs
+    # the golden age by name (18 Oct)
+    - 1950s hindi film songs
+    - 1960s hindi film songs
+    - 1970s hindi film songs
+    - naushad hits
+    - s d burman hits
+    - shankar jaikishan hits
+    - madan mohan hits
+    - o p nayyar hits
+    - c ramchandra hits
+    - talat mahmood hits
+    - hemant kumar hits
+    - geeta dutt hits
+    - mukesh hits
+    - manna dey hits
+    - k l saigal songs
+    - noor jehan hindi songs
+    - shamshad begum hits
+    - suraiya songs
+    - mohammed rafi sad songs
+    - lata mangeshkar sad songs old
+    - asha bhosle o p nayyar songs
+    # more Hindi (18 Oct)
+    - hindi songs 1940s
+    - lata mangeshkar hits 60s
+    - mohammed rafi hits 60s
+    - kishore kumar hits 70s
+    - asha bhosle hits 80s
+    - old hindi duets kishore lata
+    - bollywood retro 60s 70s
+    - hindi classical based film songs
+    - 90s bollywood dance songs
+    - 2000s bollywood sad songs
+    - 2010s bollywood hits
+    - arijit singh hits
+    - hindi lori songs
+    - nusrat fateh ali khan qawwali
+    - sufi songs hindi
+    - jagjit singh ghazals
+    - ghulam ali ghazals
+    - hindi bhajan lata mangeshkar
+    - hanuman bhajan old
+    - ram bhajan old
+    - durga mata bhajan narendra chanchal
+    - sai baba bhajan old
+    - braj bhasha bhajan
+    - meera bhajan
+    - kabir bhajan
+    # Bhojpuri and the Hindi belt folk (18 Oct)
+    - bhojpuri lokgeet
+    - bhojpuri folk songs old
+    - purbi lokgeet
+    - bhojpuri chaita
+    - bhojpuri kajri
+    - bhojpuri sohar
+    - bhojpuri nirgun
+    - bhojpuri holi geet
+    - bhojpuri sawan geet
+    - bhojpuri bidesiya
+    - bhojpuri chhath geet
+    - bhojpuri nach geet old
+    - bhojpuri bhakti geet old
+    - manoj tiwari old songs
+    - manoj tiwari bhakti geet
+    - manoj tiwari chhath geet
+    - manoj tiwari lokgeet
+    - pawan singh folk songs
+    - pawan singh old songs
+    - pawan singh bhakti geet
+    - pawan singh chhath geet
+    - khesari lal yadav old songs
+    - khesari lal bhakti geet
+    - bhojpuri lokgeet pawan singh
+    - bhojpuri bol bam songs
+    - bhojpuri devi geet
+    - bhojpuri kanwar geet
+    - bhojpuri sad songs old
+    - bhojpuri birha
+    - bhojpuri jhumar
+    - bhojpuri purvi geet
+    - bihar lokgeet
+    - maithili lokgeet
+    - magahi lokgeet
+    - awadhi lokgeet
+    - braj lokgeet
+    - rajasthani folk songs
+    - rajasthani lokgeet
+    - marwari lokgeet old
+    - manganiyar langa folk
+    - haryanvi ragni old
+    - haryanvi folk songs
+    - garhwali songs old
+    - kumaoni songs old

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block body %}
+<style>
+  .listen-head { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:baseline; margin-bottom:6px; }
+  .listen-head b { font-size:20px; }
+  .big { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0 8px; }
+  .big button, .big label.btn { font-size:16px; padding:12px 18px; border-radius:10px; display:inline-flex; gap:8px; align-items:center; }
+  .big label.btn { background:#23232e; color:var(--fg); border:1px solid var(--line); cursor:pointer; }
+  .big .main { border-color:var(--acc); color:var(--acc); font-weight:600; }
+  .big button:disabled, .big label.btn.off { opacity:.45; pointer-events:none; }
+  #after { max-width:100%; }
+  #status { min-height:24px; margin:10px 0; color:var(--dim); }
+  #status.ok { color:var(--ok); } #status.bad { color:var(--bad); } #status.busy { color:var(--acc); }
+  .hit { display:grid; grid-template-columns: 120px 1fr; gap:14px; align-items:start; }
+  .hit img, .row img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; background:#000; }
+  .hit .title { font-size:20px; } .hit audio { width:100%; margin-top:8px; }
+  .row { display:grid; grid-template-columns: 48px 1fr auto; gap:10px; align-items:center; }
+  .row .noimg { width:48px; height:48px; border-radius:8px; background:var(--line); display:grid; place-items:center; }
+  .steps li { margin:4px 0; } code { background:#23232e; padding:1px 5px; border-radius:4px; word-break:break-all; }
+  @media (max-width: 600px) { .hit { grid-template-columns: 84px 1fr; } .row { grid-template-columns: 40px 1fr; } .row .actions { grid-column: 1 / -1; justify-content:flex-start; } }
+</style>
+
+<div class="listen-head">
+  <b>🎤 Listen · पहचानो</b>
+  <span class="artist">Play a song near the PC, or record it on your phone. MastGaane names it, keeps it in your collection and plays it.</span>
+</div>
+
+<div class="big">
+  <button id="mic" class="main" data-source="mic" title="Every real microphone on the PC records for {{ seconds }} s; the loudest is used">🎤 Listen</button>
+  <button data-source="pc" title="Whatever this PC is playing — a reel or video in the browser">🔊 What's playing on this PC</button>
+  <label id="phone" class="btn" title="Opens the phone camera; only the sound is used">📱 Record on phone
+    <input type="file" accept="video/*,audio/*" capture="environment" hidden></label>
+  <label class="btn" title="A voice memo or video you already have">📁 Pick a recording
+    <input type="file" accept="audio/*,video/*" hidden></label>
+</div>
+<div class="filters">
+  <span>After saving:</span>
+  <select id="after">
+    <option value="next">play it next on the PC speakers (when MastGaane is playing)</option>
+    <option value="now">play it now on the PC speakers</option>
+    <option value="none">just save it</option>
+  </select>
+</div>
+<div id="status"></div>
+<div id="result"></div>
+
+<h3 style="margin-top:26px">Caught so far</h3>
+{% if not catches %}
+<p class="artist">Nothing yet. Press 🎤 Listen while a song plays.</p>
+{% endif %}
+{% for c in catches %}
+<div class="card row">
+  {% if c.cover %}<img src="{{ c.cover }}" alt="" loading="lazy">{% else %}<div class="noimg">♪</div>{% endif %}
+  <div>
+    <div class="title">{{ c.title }}</div>
+    <div class="artist">{{ c.artist }}</div>
+    <div class="meta"><span>{{ c.when }}</span><span>{{ c.source }}</span>{% if c.status %}<span class="pill {{ c.status }}">{{ c.status }}</span>{% endif %}
+      {% if c.shazam %}<span class="links"><a href="{{ c.shazam }}" target="_blank" rel="noopener">Shazam ↗</a></span>{% endif %}</div>
+  </div>
+  <div class="actions">
+    {% if c.yt and c.status != 'rejected' %}
+    <button class="acc" data-here="{{ c.yt }}">▶ Here</button>
+    <button data-pc="{{ c.song_id }}">🔈 On PC</button>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+
+<details style="margin-top:22px">
+  <summary>iPhone: “Hey Siri, Mast Pehchano” (uses the iPhone's own Shazam)</summary>
+  <div class="card" style="display:block; margin-top:8px">
+    <ol class="steps">
+      <li>Run MastGaane so the phone can reach it: <code>uv run mastgaane serve --lan</code> (phone on the same Wi-Fi).</li>
+      <li>Shortcuts app → <b>+</b> → add the <b>Shazam</b> action (search “Shazam”; it may be called <i>Shazam It</i> or <i>Recognise Music</i>).</li>
+      <li>Add <b>Get Contents of URL</b>: URL <code>{{ lan_url }}/api/listen/save</code>, Method <b>POST</b>, Request Body <b>JSON</b> with three Text fields:
+        <code>title</code> = Shazam result <i>Title</i>, <code>artist</code> = <i>Artist</i>, <code>apple_url</code> = <i>Apple Music URL</i>.
+        Optional: <code>play</code> = <code>now</code> to hear it on the PC at once.</li>
+      <li>Add <b>Get Dictionary Value</b> <code>summary</code> → <b>Speak Text</b> (or Show Result).</li>
+      <li>Name the shortcut <b>Mast Pehchano</b>. Now “Hey Siri, Mast Pehchano” names the song and drops it into your collection.</li>
+    </ol>
+    <p class="artist">The 📱 Record on phone button above also works from the phone's browser at <code>{{ lan_url }}/listen</code> — no Shortcut needed.</p>
+  </div>
+</details>
+
+<audio id="here" hidden></audio>
+<script>
+const SECONDS = {{ seconds }};
+if (!['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname)) {  // opened on the phone: its own recording first
+  const mic = document.getElementById('mic'), phone = document.getElementById('phone');
+  mic.classList.remove('main');
+  mic.textContent = '🎤 Listen with the PC mic';
+  phone.classList.add('main');
+  mic.parentNode.insertBefore(phone, mic);
+}
+const sel = document.getElementById('after');
+const statusEl = document.getElementById('status');
+const resultEl = document.getElementById('result');
+const here = document.getElementById('here');
+try { sel.value = localStorage.getItem('listen.after') || 'next'; } catch (e) {}
+sel.onchange = () => { try { localStorage.setItem('listen.after', sel.value); } catch (e) {} };
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function status(msg, cls) { statusEl.textContent = msg; statusEl.className = cls || ''; }
+function busy(on) {
+  document.querySelectorAll('.big button').forEach(b => b.disabled = on);
+  document.querySelectorAll('.big label.btn').forEach(l => l.classList.toggle('off', on));
+}
+
+async function show(r) {
+  let d = {};
+  try { d = await r.json(); } catch (e) {}
+  if (!r.ok) { status(d.detail || `Something went wrong (${r.status})`, 'bad'); return; }
+  if (!d.found) { status(d.summary, 'bad'); resultEl.innerHTML = ''; return; }
+  status(d.summary, 'ok');
+  const sub = [d.album, d.year].filter(Boolean).join(' · ');
+  resultEl.innerHTML = `
+    <div class="card hit">
+      ${d.cover_url ? `<img src="${esc(d.cover_url)}" alt="">` : '<div class="noimg" style="width:100%;aspect-ratio:1;border-radius:8px;background:var(--line)"></div>'}
+      <div>
+        <div class="title">${esc(d.title)}</div>
+        <div class="artist">${esc(d.artist)}</div>
+        ${sub ? `<div class="meta">${esc(sub)}</div>` : ''}
+        <div class="actions" style="justify-content:flex-start;margin-top:10px">
+          ${d.playable ? `<button class="acc" data-here="${esc(d.yt)}">▶ Play here</button><button data-pc="${d.song_id}">🔈 On PC speakers</button>` : ''}
+          <button class="bad" data-wrong="${d.song_id}">✗ Wrong song</button>
+          ${d.shazam_url ? `<span class="links"><a href="${esc(d.shazam_url)}" target="_blank" rel="noopener">Shazam ↗</a></span>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+async function listen(source) {
+  busy(true);
+  let left = SECONDS;
+  status(`Listening… ${left}`, 'busy');
+  const tick = setInterval(() => { left--; status(left > 0 ? `Listening… ${left}` : 'Naming it…', 'busy'); }, 1000);
+  try {
+    await show(await fetch('/api/listen', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ source, play: sel.value }) }));
+  } catch (e) { status('Could not reach MastGaane: ' + e, 'bad'); }
+  finally { clearInterval(tick); busy(false); }
+}
+
+async function upload(input) {
+  const f = input.files[0];
+  if (!f) return;
+  busy(true);
+  status('Sending the recording…', 'busy');
+  const fd = new FormData();
+  fd.append('file', f);
+  fd.append('play', sel.value);
+  try { await show(await fetch('/api/listen/file', { method: 'POST', body: fd })); }
+  catch (e) { status('Could not reach MastGaane: ' + e, 'bad'); }
+  finally { input.value = ''; busy(false); }
+}
+
+document.querySelectorAll('.big button[data-source]').forEach(b => b.onclick = () => listen(b.dataset.source));
+document.querySelectorAll('.big input[type=file]').forEach(i => i.onchange = () => upload(i));
+
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('button');
+  if (!b) return;
+  if (b.dataset.here) {
+    if (here.dataset.yt === b.dataset.here && !here.paused) { here.pause(); status('Paused.'); return; }
+    here.src = `/jockey/audio/${encodeURIComponent(b.dataset.here)}`;
+    here.dataset.yt = b.dataset.here;
+    status('Fetching the song… (the first play takes a few seconds)', 'busy');
+    here.play().then(() => status('Playing here.', 'ok')).catch(e => status('Could not play: ' + e, 'bad'));
+    here.onended = () => status('');
+  } else if (b.dataset.pc) {
+    const r = await fetch('/api/player/song', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                 body: JSON.stringify({ song_id: +b.dataset.pc, now: true }) });
+    const d = await r.json().catch(() => ({}));
+    status(r.ok ? 'On the PC speakers now.' : (d.detail || 'Could not play on the PC'), r.ok ? 'ok' : 'bad');
+  } else if (b.dataset.wrong) {
+    const fd = new URLSearchParams({ status: 'rejected', back: '/listen' });
+    await fetch(`/songs/${b.dataset.wrong}/status`, { method: 'POST', body: fd });
+    location.reload();
+  }
+});
+here.onerror = () => status('Could not fetch that song from YouTube.', 'bad');
+</script>
+{% endblock %}

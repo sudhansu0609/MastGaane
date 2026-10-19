@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -39,6 +39,79 @@ def bound_port() -> int:
 def health():
     """Who is on this port, so a scanner cannot mistake us for another app."""
     return {"app": ports.APP_ID, "status": "ok", "port": _bound_port, "pid": os.getpid()}
+
+
+#: How `serve` stops the server (None when the app runs some other way, e.g. in tests).
+_shutdown = None
+#: The voice-command listener `serve` started (voice_control.VoiceControl), if any.
+_voice = None
+
+
+def set_shutdown(fn) -> None:
+    global _shutdown
+    _shutdown = fn
+
+
+def set_voice(vc) -> None:
+    global _voice
+    _voice = vc
+
+
+@app.get("/api/voice")
+def voice_status():
+    """Voice commands without Dexter: listening or not, on which mic, the wake words, what was heard last."""
+    from ..voice_control import wake_words
+
+    vc = _voice
+    return {"running": bool(vc and vc.running), "ears": "own mic and Dexter" if vc and vc.running else "Dexter",
+            "listening_for_command": bool(vc and (vc.listening or vc.awaiting)),
+            "mic": vc.mic if vc else None, "wake_words": wake_words(),
+            "last": vc.last if vc else "", "history": list(vc.history)[::-1] if vc else []}
+
+
+class HeardRequest(BaseModel):
+    text: str
+
+
+@app.post("/api/voice/heard")
+def voice_heard(req: HeardRequest, request: Request):
+    """A sentence Dexter heard that starts with one of our names ("Bharti, next song"), or the one after
+    the name alone ("listening": true): Dexter does nothing else with it — he is our ear. The same command
+    heard by our own mic too (VOICE_CONTROL) is done once. Only from this PC."""
+    import ipaddress
+
+    try:
+        local = ipaddress.ip_address(request.client.host).is_loopback
+    except (AttributeError, ValueError):
+        local = False
+    if not local:
+        raise HTTPException(403, "only from this PC")
+    vc = _voice
+    if vc is None:
+        raise HTTPException(503, "voice commands are off")
+    did = vc.handle(req.text[:300])
+    # the name alone: the chime, the music down — Dexter sends what is said next (no name needed)
+    return {"did": did, "listening": vc.awaiting}
+
+
+@app.post("/api/shutdown")
+def shutdown(request: Request):
+    """Stop the music and the server, cleanly: ffplay ends, the port leaves the ledger and the tray icon
+    goes (Dexter's "close MastGaane"). Only from this PC, even when serving the LAN."""
+    import ipaddress
+
+    try:
+        local = ipaddress.ip_address(request.client.host).is_loopback
+    except (AttributeError, ValueError):
+        local = False
+    if not local:
+        raise HTTPException(403, "only from this PC")
+    if _shutdown is None:
+        raise HTTPException(503, "this server was not started by `mastgaane serve`")
+    if _player is not None:
+        _player.stop()
+    _shutdown()
+    return {"ok": True, "summary": "MastGaane is closing."}
 
 
 def render(request: Request, name: str, **kw):
@@ -158,6 +231,7 @@ class PlayEvent(BaseModel):
     programme: str = ""
     listened_s: float = 0.0
     duration_s: float = 0.0
+    mood: str = ""
 
 
 @app.post("/jockey/event")
@@ -197,26 +271,30 @@ def player():
 
 
 def _said(now: dict) -> dict:
-    """The player state plus one sentence an assistant can speak."""
+    """The player state plus one sentence an assistant can speak (naming the resolved wish)."""
+    wish = now.get("wish") or now["focus"]
     if now["message"] and now["state"] == "stopped":
         line = now["message"]
     elif now["state"] == "stopped":
         line = "MastGaane is not playing."
     elif now["phase"] == "link" or not now["title"]:
-        line = "MastGaane is starting" + (f" — {now['focus']}." if now["focus"] else ".")
+        line = "MastGaane is starting" + (f" — {wish}." if wish else ".")
     else:
         if now["kind"] == "episode":  # episode titles usually start with the programme's name already
             named = now["title"].lower().startswith(now["programme"].lower())
             what = now["title"] if named else f"{now['programme']}: {now['title']}"
         else:
             what = now["title"] + (f" by {now['artist']}" if now["artist"] else "")
-        line = ("Paused: " if now["state"] == "paused" else "Playing ") + what + "."
+        line = ("Paused: " if now["state"] == "paused" else "Playing ") + what + (f" ({wish})" if wish else "") + "."
+    if now.get("muted") and now["state"] != "stopped":
+        line = "Muted. " + line
     return {**now, "summary": line}
 
 
 class PlayRequest(BaseModel):
     focus: str = ""
     talk: bool = True
+    links: str = ""  # who writes the links: resident | always | never ("" = JOCKEY_LLM_LINKS)
 
 
 @app.post("/api/player/play")
@@ -226,14 +304,77 @@ def player_play(req: PlayRequest | None = None):
     if not ffplay_path():
         raise HTTPException(503, "ffplay (FFmpeg) is not installed on this PC")
     req = req or PlayRequest()
-    return _said(player().play(req.focus[:120], talk=req.talk))
+    links = req.links.strip().lower()
+    if links not in ("", "resident", "always", "never"):
+        raise HTTPException(400, "links must be resident, always or never")
+    return _said(player().play(req.focus[:120], talk=req.talk, links=links))
+
+
+@app.get("/api/player/vocabulary")
+def player_vocabulary(artists: int = 100):
+    """The words a voice assistant should expect in a music request (Dexter's Lexicon reads this):
+    programme names with their Hindi spelling and aliases, the most-kept artists, mood and time words."""
+    from collections import Counter
+
+    from .. import archive, moods
+
+    progs = [{"slug": slug, "name": p.name, "hindi": p.hindi, "aliases": list(p.aliases)}
+             for slug, p in archive.PROGRAMMES.items()]
+    count: Counter = Counter()
+    with session() as s:
+        for song in s.exec(select(Song).where(Song.status == "approved")).all():
+            for a in (song.artist or "").split(","):
+                if a.strip():
+                    count[a.strip()] += 1
+    return {
+        "programmes": progs,
+        "artists": [a for a, _ in count.most_common(max(0, min(artists, 500)))],
+        "moods": [w for words in moods.MOODS.values() for w in words],
+        "times": [w for words in moods.TIMES.values() for w in words],
+    }
+
+
+class SongPlayRequest(BaseModel):
+    song_id: int
+    now: bool = True  # False = next, and only while the player is running
+
+
+@app.post("/api/player/song")
+def player_song(req: SongPlayRequest):
+    from .. import jockey
+    from ..player import ffplay_path
+
+    if not ffplay_path():
+        raise HTTPException(503, "ffplay (FFmpeg) is not installed on this PC")
+    with session() as s:
+        song = s.get(Song, req.song_id)
+    if song is None or not song.yt_video_id:
+        raise HTTPException(404, "no such song, or it has no YouTube match to play")
+    p = player()
+    item = jockey.announce(jockey.song_item(song, caught=True), n_picked=1, talk=p.talk, use_llm=False)
+    return _said(p.play_item(item, now=req.now))
+
+
+class DuckRequest(BaseModel):
+    level: Optional[float] = 0.2  # null = back to full
+    seconds: Optional[float] = None  # come back up by itself after this long
+
+
+@app.post("/api/player/duck")
+def player_duck(req: DuckRequest | None = None):
+    """Dip the music (Dexter is listening or talking) or bring it back; it never stays down past `seconds`."""
+    req = req or DuckRequest()
+    level = None if req.level is None else max(0.0, min(1.0, req.level))
+    seconds = min(req.seconds, 120.0) if req.seconds else (30.0 if level is not None else None)
+    player().duck(level, seconds=seconds)
+    return _said(player().now())
 
 
 @app.post("/api/player/{action}")
 def player_action(action: str):
     p = player()
     fn = {"pause": p.pause, "resume": p.resume, "next": p.skip, "skip": p.skip, "like": p.like,
-          "dislike": p.dislike, "stop": p.stop}.get(action)
+          "dislike": p.dislike, "stop": p.stop, "mute": p.mute, "unmute": p.unmute}.get(action)
     if fn is None:
         raise HTTPException(404, f"unknown player action {action!r}")
     return _said(fn())
@@ -274,6 +415,115 @@ def naya_rule(list_name: str = Form(...), artist: str = Form(...)):
         raise HTTPException(400, str(e))
     msg = f"{artist} added to {list_name}" if added else f"{artist} was already in rules.yaml"
     return RedirectResponse(f"/naya?msg={msg}", status_code=303)
+
+
+# ----------------------------------------------------------------------------- Listen (Shazam inside MastGaane)
+PLAY_CHOICES = ("next", "now", "none")
+MAX_UPLOAD_BYTES = 300 * 1024 * 1024
+
+
+def _after_catch(out: dict, play: str) -> dict:
+    """Put a caught song on the PC speakers: now (starts the player) or next (only if it is playing)."""
+    if play not in PLAY_CHOICES:
+        raise HTTPException(400, "play must be next, now or none")
+    if not out.get("found") or not out.get("playable") or play == "none":
+        return out
+    from .. import jockey
+    from ..player import ffplay_path
+
+    p = player()
+    if not ffplay_path() or (play == "next" and p.now()["state"] == "stopped"):
+        return out
+    with session() as s:
+        song = s.get(Song, out["song_id"])
+    item = jockey.announce(jockey.song_item(song, caught=True), n_picked=1, talk=p.talk, use_llm=False)
+    p.play_item(item, now=play == "now")
+    out["player"] = "now" if play == "now" else "next"
+    out["summary"] = out["summary"].replace("MastGaane FM plays it next.", "playing it now." if play == "now" else "it plays next on the PC.")
+    return out
+
+
+def _listen_error(e: Exception) -> HTTPException:
+    return HTTPException(409 if "already listening" in str(e) else 503, str(e))
+
+
+@app.get("/listen")
+def listen_page(request: Request):
+    from .. import listen
+
+    return render(request, "listen.html", catches=listen.recent(), lan_url=f"http://{_lan_ip()}:{bound_port()}",
+                  seconds=settings.listen_seconds)
+
+
+class ListenRequest(BaseModel):
+    source: str = "mic"  # mic (this PC's microphones) | pc (what this PC is playing)
+    seconds: int = 0  # 0 = LISTEN_SECONDS
+    play: str = "next"  # next | now | none — on the PC speakers
+
+
+@app.post("/api/listen")
+def api_listen(req: ListenRequest | None = None):
+    """Record on this PC, name the song, keep it. Dexter: "what's this song?"."""
+    from .. import listen
+
+    req = req or ListenRequest()
+    if req.source not in ("mic", "pc"):
+        raise HTTPException(400, "source must be mic or pc")
+    if req.play not in PLAY_CHOICES:
+        raise HTTPException(400, "play must be next, now or none")
+    try:
+        out = listen.catch(req.source, req.seconds or None)
+    except listen.ListenError as e:
+        raise _listen_error(e)
+    return _after_catch(out, req.play)
+
+
+@app.post("/api/listen/file")
+def api_listen_file(file: UploadFile = File(...), play: str = Form("next")):
+    """A recording from the phone (audio or video — only the sound is used)."""
+    import shutil
+    import tempfile
+
+    from .. import listen
+
+    if play not in PLAY_CHOICES:
+        raise HTTPException(400, "play must be next, now or none")
+    suffix = re.sub(r"[^.\w]", "", Path(file.filename or "").suffix)[:10] or ".bin"
+    with tempfile.TemporaryDirectory(prefix="mastgaane-upload-") as tmp:
+        dst = Path(tmp) / f"take{suffix}"
+        with open(dst, "wb") as f:
+            shutil.copyfileobj(file.file, f, length=1 << 20)
+        if dst.stat().st_size > MAX_UPLOAD_BYTES:
+            raise HTTPException(413, "recording too large — 10–20 seconds is plenty")
+        try:
+            out = listen.catch("phone", upload=dst)
+        except listen.ListenError as e:
+            raise _listen_error(e)
+    return _after_catch(out, play)
+
+
+class SaveRequest(BaseModel):
+    title: str
+    artist: str = ""
+    apple_url: str = ""  # the Shazam action's "Apple Music URL"
+    apple_id: str = ""
+    play: str = "next"
+
+
+@app.post("/api/listen/save")
+def api_listen_save(req: SaveRequest):
+    """The iPhone's own Shazam (a Shortcut) already named it — keep it."""
+    from .. import listen
+
+    if req.play not in PLAY_CHOICES:
+        raise HTTPException(400, "play must be next, now or none")
+    apple_id = req.apple_id.strip() if req.apple_id.strip().isdigit() else listen.apple_id_from_url(req.apple_url)
+    heard = listen.Heard(title=req.title[:200], artist=req.artist[:200], apple_id=apple_id, via="shortcut")
+    try:
+        out = listen.save(req.title[:200], req.artist[:200], "shortcut", heard)
+    except listen.ListenError as e:
+        raise HTTPException(400, str(e))
+    return _after_catch(out, req.play)
 
 
 # ----------------------------------------------------------------------------- Apple Music

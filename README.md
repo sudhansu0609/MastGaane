@@ -68,9 +68,20 @@ Open the **▶ FM** tab and press *Start*. It plays one endless channel:
 - old programmes in their time slots, loosely after the Vividh Bharati day: Sangeet Sarita and
   Triveni in the morning, Bhoole Bisre Geet after lunch, Jaimala at 7 pm, Hawa Mahal at 8
   (Geetmala on Wednesdays), Chhaya Geet late at night
-- a Hindi announcer between items: the local LLM writes the line while the previous song plays,
-  and a Microsoft neural voice reads it (`JOCKEY_VOICE=hi-IN-SwaraNeural` or `hi-IN-MadhurNeural`;
-  needs internet; untick *host voice* to turn it off)
+- a Hindi announcer between items: the local LLM writes the line while the previous song plays.
+  The host feels the song: hushed and slow before a sad ghazal, tender for a romantic one, bright
+  and quick for an upbeat one or a new find. Like a real RJ she talks before every 2nd song
+  (`JOCKEY_TALK_EVERY`; programmes, new finds and caught songs always). Untick *host voice* to turn
+  her off. Who speaks:
+  - **Gemini TTS** (set `GEMINI_API_KEY`, free key at https://aistudio.google.com/apikey): one of
+    Google's native Hindi voices (`GEMINI_TTS_VOICE=hi-in-podcaster-9`, a 25-year-old radio host from
+    Delhi), told the feeling in words. The free tier gives 10 links a day per model; the 3.8 Flash and
+    Flash-Lite take turns (`GEMINI_TTS_MODEL`), so ~20 links ≈ 40 songs a day. When both are used up
+    she goes quiet and the music flows on (`JOCKEY_FALLBACK=edge` lets the Microsoft voice stand in).
+    Hear her with `uv run mastgaane host-voice --play`.
+  - without a Gemini key, a Microsoft neural voice (`JOCKEY_VOICE`: `hi-IN-SwaraNeural`,
+    `hi-IN-MadhurNeural` (male) or `mr-IN-AarohiNeural`; en-IN Neerja and ur-IN Gul cannot read
+    Devanagari), each sentence in its own pitch and pace
 - **🎧 Audio** plays everything as ad-free audio served by this app, and works with the iPhone
   screen locked. **📺 Video** plays music videos in the YouTube player, so YouTube ads may appear;
   programmes always stay audio.
@@ -92,7 +103,123 @@ Dexter drives it over HTTP:
 |---|---|
 | `POST /api/player/play` `{"focus": "ghazals", "talk": true}` | start, or switch to a wish: a genre (ghazal, folk, film…), a language (bhojpuri, urdu), an era (`90s`, `purane gaane`), a programme (`Hawa Mahal`) or a singer (`Jagjit Singh`); empty = the usual mix |
 | `POST /api/player/{pause,resume,next,like,dislike,stop}` | the remote control (like/dislike teach the same taste as `/fm`) |
+| `POST /api/player/{mute,unmute}` | no sound, the show going on: songs and links play on silently (`now` says `muted`); play / resume unmute |
 | `GET /api/player/now` | state + a `summary` sentence to speak |
+| `POST /api/player/song` `{"song_id": 12, "now": true}` | play one song from the collection now (`now: false` = next, only while playing) |
+| `POST /api/shutdown` | stop the music and close MastGaane (only from this PC) — Dexter's "close MastGaane" |
+
+**Tray icon.** While `mastgaane serve` runs (also when Dexter starts it with no window) an amber ♪
+sits in the Windows tray: hover for what is playing, left click to play / pause, right click for
+Mute, Next, Like, Never play this again, Stop music, Open MastGaane and Quit MastGaane (🔇 in the
+tooltip while muted). Windows 11 puts new
+icons under the **^** overflow at first — drag it onto the taskbar to keep it in sight.
+`TRAY=false` (or `serve --no-tray`) hides it.
+
+**Voice commands — Dexter is the ear.** Say its name — **"Bharti"** (the surest), "Radio" or "FM"
+(`VOICE_WAKE_WORDS`) — and then the command. Dexter hears it (Whisper large-v3-turbo on the GPU, his
+owner-voice check, a name only at the start of a sentence) and hands it over (`POST /api/voice/heard`);
+MastGaane does the rest:
+
+- **"Bharti"** … *ding*, the music dips … **"agla gaana"** — Dexter sends the next sentence too, no name
+  needed (`{"listening": true}` in the reply to the name alone);
+- or in one breath: **"Bharti, next song"** — done straight away;
+- MastGaane closed: **"Bharti, ghazal sunao"** (a wish to play) makes Dexter start it first.
+
+Its own mic is off by default (`VOICE_CONTROL=false`): live, 17 Oct, on the new Yeti mic its small CPU
+model took the songs and Hawa Mahal's dialogue for "Bharti" every few seconds (26 false chimes in 47
+minutes), while Dexter, on the same music, handed over only real calls. `VOICE_CONTROL=true` (or the
+tray's *Own mic too*) listens on its own mic as well — for when Dexter is not running; everything below
+about echoes is about that mic.
+
+| Say (after the name) | Does |
+|---|---|
+| "next song" · "agla gaana" · "change karo" | skip |
+| "stop" · "gaana band karo" / "pause" · "ruko" / "chalao" | stop / pause / play again |
+| "I like this" · "badhiya" / "I don't like this" · "hatao" | like / never again |
+| "what's playing?" · "kaun sa gaana hai" | a notification with the song |
+| "mute" · "awaaz band karo" / "unmute" · "awaaz kholo" | sound off, the songs going on / sound back |
+| "ghazal sunao" · "gajal" · "Hawa Mahal lagao" · "Jagjit Singh ke gaane" · "something sad" · "purane gaane" | play that |
+
+**Mishearings** are corrected the way Dexter's lexicon does it (`mastgaane/lexicon.py`): Whisper hears
+Hindi in English mode, and live it wrote "Bharti" as "Marthi." / "Bhaarati" and "Hanuman Chalisa" as
+"Leharman Chalisa". The name is also recognised by how it sounds (b/bh/m/v + "ar" + t/th/d + i/ee/y:
+Marthi, Marty, Bhaarati, Smartie, Barty…, but not "party", "Bharat", "bhakti" or the lyric "marte"), and
+a wish that matches nothing exactly is matched to your titles, singers and programmes by consonant
+shape ("leharman chalisa" → Hanuman Chalisa, "jagjeet singh" → Jagjit Singh, "hawa mehal" → Hawa Mahal).
+
+It never acts on the songs or the host: a lyric that happens to hold a name must also sound like a
+command; Whisper's echo of its own prompt (on plain music it writes "Bharti.", "Hello, Bharti." back) is
+caught by a second listen without the prompt: over the music a name with no command after it counts
+only if the name is there again in some form (not "part": "a part of you" once counted); while the host talks (and a few
+seconds after) only stop / pause / next are obeyed; and one command heard twice (by Dexter too) is done
+once. "Dexter, …" also dips the music, so Dexter hears you clean; **Dexter ignores anything that starts
+with Bharti, Radio or FM** and hands it over (`POST /api/voice/heard`). The tray has *Speak a command*
+(no name needed, own mic only) and the own-mic switch; `VOICE_CHIME=false` silences the chime. `GET /api/voice` lists what it heard and what it did;
+`VOICE_DEBUG=true` also logs every transcription (with its no-speech score) and every decision to
+`data/voice_debug.log`, and keeps the audio of the last 120 with a name or a command in them in
+`data/voice_debug/`.
+
+How well it hears, in a simulated room (real songs at the level the Brio hears your speakers, commands
+spoken by edge-tts voices over them): with your voice 8 dB above the music 16 of 17 commands were done,
+0.2–0.6 s after the last word; 3 dB above, "Bharti" still worked for nearly everything while "Radio" and
+"FM" (short, English-sounding, easily lost in a song) mostly did not; 80 s of music alone did nothing.
+
+**The collection.** Besides your own songs, the jockey plays from a big collection — about 5,000 songs,
+nearly all from before 2010, at most 200 from 2010 on (yours included): `uv run mastgaane library` fills
+it from YouTube Music — the singers, composers and playlists in `rules.yaml` `library` (Rafi, Lata,
+Kishore, R.D. Burman… Kumar Sanu, Alka Yagnik… Jagjit Singh, Ghulam Ali… Anup Jalota, Sharda Sinha), each
+up to its number, in turns. Remixes, lofi, jhankar and jukebox uploads and second uploads of a song are
+skipped; the local LLM (never a paid API) labels each one — the language it is sung in (Lata's Marathi
+and Hemant Kumar's Bengali songs drop out), genre, mood, the film's year. Stop it any time and run it
+again to carry on; `--stats` shows what it holds. With no wish, three picks in ten still come from your
+own songs.
+
+**Through the day.** With no wish, about two thirds of the songs suit the hour: bhakti and peaceful
+songs in the morning, happy ones after lunch, romantic ones in the evening, ghazals and sad songs at
+night — around the Vividh Bharati programmes in their slots. It also learns what *you* play at each
+hour: the moods and genres you finish there come more often then, the ones you skip less. Nothing of
+the last 40 songs comes back — in any upload of it ("Hum Tere Shahar Me Aaye Hai" and "…Mein Aaye
+Hain" are one song). The first time you start it on a
+morning it opens with **Hanuman Chalisa** (Hariharan; `MORNING_OPENER`, once a day). Where a part of
+the day runs short, the nightly run finds more from `rules.yaml` `time_seeds` (bhajans for the
+morning…); `uv run mastgaane discover --time morning` does it now.
+
+## 🎤 Listen — Shazam inside MastGaane
+
+Hear a song you like? Open the **🎤 Listen** tab (or ask Dexter). MastGaane names it with Shazam,
+saves it to your collection as *approved* (whatever the language rules say — you chose it),
+finds it on YouTube so the players can play it, and **MastGaane FM plays it next** with a
+special announcement. Like every approved song it joins the YouTube Music / Apple Music lists
+at the next `sync` (Shazam already supplies its Apple Music id).
+
+- **🎤 Listen** — the PC's microphones listen for `LISTEN_SECONDS` (10). Every real mic records
+  at once and the loudest take is used; virtual devices and Bluetooth hands-free mics are skipped
+  (opening one drops your headphones into call quality). `LISTEN_MIC=Brio` pins one.
+- **🔊 What's playing on this PC** — names a reel or video playing in the browser (it records
+  the PC's own sound output, not the room).
+- **📱 Record on phone** — on the iPhone (`mastgaane serve --lan`, open `/listen`) it opens the
+  camera: point it anywhere for ~10 s, only the sound is used. **📁 Pick a recording** takes a
+  voice memo or video.
+- **“Hey Siri, Mast Pehchano”** — a Shortcut with the iPhone's own Shazam action posting to
+  `/api/listen/save`; the step-by-step is at the bottom of the Listen tab.
+- *After saving*: play it next on the PC speakers (only if MastGaane is already playing), now,
+  or just save it. The /fm page in a browser picks it up as its next song by itself.
+
+```powershell
+uv run mastgaane listen             # PC mic
+uv run mastgaane listen --pc        # what this PC is playing
+uv run mastgaane listen -f take.m4a # a recording
+uv run mastgaane listen --mics      # which microphones it uses
+```
+
+| Route | Does |
+|---|---|
+| `POST /api/listen` `{"source": "mic" or "pc", "seconds": 10, "play": "next"}` | record on the PC, name it, keep it — returns a `summary` to speak |
+| `POST /api/listen/file` (multipart `file`, `play`) | the same for a phone recording |
+| `POST /api/listen/save` `{"title", "artist", "apple_url", "play"}` | keep a song the iPhone's Shazam already named |
+
+Recordings go to a temp folder that is deleted straight after; Shazam gets a fingerprint, not
+the audio (AudD, if `AUDD_API_KEY` is set and Shazam misses, gets the clip).
 
 ## Radio, Archive and Discover (web UI tabs)
 
@@ -152,7 +279,7 @@ Run `uv run mastgaane setup apple` — it prints the steps with your PC's LAN ad
 | Tier | Source | Confidence |
 |---|---|---|
 | 1 | Instagram's own music attribution (licensed tracks) | 0.90 |
-| 2 | Shazam fingerprint of a 25 s clip (AudD fallback if key set) | 0.75 |
+| 2 | Shazam fingerprint of a 25 s clip (AudD fallback if key set; needs `audioop-lts` on Python 3.13) | 0.75 |
 | 3 | faster-whisper lyric transcript + caption → LLM guess (local Ollama or Claude) | ≤ 0.70 |
 
 Both LLM steps ask for a strict JSON object (pydantic schema). With Ollama the schema is passed as

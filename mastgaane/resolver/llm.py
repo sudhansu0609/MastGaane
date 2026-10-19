@@ -99,19 +99,64 @@ def ollama_alive(autostart: bool | None = None) -> bool:
     return False
 
 
-def _ollama_json(system: str, user: str, out: Type[T]) -> T:
-    r = httpx.post(
-        f"{_ollama_base()}/api/chat",
-        json={
-            "model": settings.llm_model,
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            "format": _schema(out),  # constrained decoding → valid JSON for our schema
-            "stream": False,
-            "options": {"temperature": 0.1, "num_ctx": 4096},
-            "keep_alive": settings.llm_keep_alive,
-        },
-        timeout=settings.llm_timeout,
-    )
+def ollama_loaded(timeout: float = 1.5) -> list[dict]:
+    """Models Ollama has in memory right now (/api/ps). Never starts Ollama, never loads anything."""
+    try:
+        r = httpx.get(f"{_ollama_base()}/api/ps", timeout=timeout)
+        r.raise_for_status()
+        return [m for m in (r.json().get("models") or []) if isinstance(m, dict)]
+    except Exception:
+        return []
+
+
+def _loaded_info(model: str) -> dict:
+    return next((m for m in ollama_loaded() if model in (m.get("name"), m.get("model"))), {})
+
+
+def resident_model() -> str | None:
+    """A chat model already loaded in Ollama (settings.llm_model preferred), or None.
+    Used so the jockey never makes Ollama load a second LLM next to the one another app keeps."""
+    names = [m.get("name") or m.get("model") for m in ollama_loaded()]
+    names = [n for n in names if n and "embed" not in n.lower()]
+    if not names:
+        return None
+    return settings.llm_model if settings.llm_model in names else names[0]
+
+
+def _keep_alive_left(info: dict):
+    """The resident model's remaining keep-alive, so our call does not shorten (or stretch) it."""
+    from datetime import datetime, timezone
+
+    try:
+        left = (datetime.fromisoformat(info["expires_at"]) - datetime.now(timezone.utc)).total_seconds()
+    except Exception:
+        return None
+    if left > 365 * 86400:
+        return -1  # pinned forever
+    return f"{int(left)}s" if left > 1 else None
+
+
+def _ollama_json(system: str, user: str, out: Type[T], model: str | None = None) -> T:
+    options: dict = {"temperature": 0.1, "num_ctx": 4096}
+    body = {
+        "model": model or settings.llm_model,
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        "format": _schema(out),  # constrained decoding → valid JSON for our schema
+        "stream": False,
+        "options": options,
+        "keep_alive": settings.llm_keep_alive,
+    }
+    if model:  # a resident model: same context (a different num_ctx would reload it), same keep-alive
+        info = _loaded_info(model)
+        options.pop("num_ctx")
+        if info.get("context_length"):
+            options["num_ctx"] = int(info["context_length"])
+        keep = _keep_alive_left(info)
+        if keep is None:
+            body.pop("keep_alive")
+        else:
+            body["keep_alive"] = keep
+    r = httpx.post(f"{_ollama_base()}/api/chat", json=body, timeout=settings.llm_timeout)
     r.raise_for_status()
     return out.model_validate(_extract_json(r.json()["message"]["content"]))
 
@@ -194,8 +239,14 @@ def llm_available() -> bool:
     return bool(providers())
 
 
-def complete_json(system: str, user: str, out: Type[T]) -> T:
-    """Run the prompt on the first working provider; raise LLMUnavailable if none works."""
+def complete_json(system: str, user: str, out: Type[T], model: str | None = None) -> T:
+    """Run the prompt on the first working provider; raise LLMUnavailable if none works.
+    `model` = an Ollama model already in memory (see resident_model): only that one is tried."""
+    if model:
+        try:
+            return _ollama_json(system, user, out, model=model)
+        except Exception as e:
+            raise LLMUnavailable(f"ollama {model}: {type(e).__name__}: {str(e)[:120]}") from e
     errors = []
     for name in providers():
         try:

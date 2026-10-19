@@ -20,9 +20,10 @@ from .llm import LLMUnavailable, complete_json
 
 Genre = Literal["film", "ghazal", "folk", "sufi", "classical", "indie", "devotional", "other"]
 Language = Literal[
-    "hindi", "urdu", "bhojpuri", "awadhi", "maithili", "magahi", "rajasthani", "haryanvi",
+    "hindi", "urdu", "bhojpuri", "awadhi", "maithili", "magahi", "braj", "rajasthani", "haryanvi", "garhwali", "kumaoni",
     "punjabi", "bengali", "marathi", "gujarati", "tamil", "telugu", "english", "other",
 ]
+Mood = Literal["sad", "romantic", "energetic", "peaceful", "happy", "devotional", "nostalgic", "any"]  # moods.MOODS keys
 GENRES = Genre.__args__  # type: ignore[attr-defined]
 LANGUAGES = Language.__args__  # type: ignore[attr-defined]
 HINDUSTANI = {"hindi", "urdu"}
@@ -34,6 +35,7 @@ class Verdict(BaseModel):
     language: Language = Field(description="language the song is sung in; Hindi film songs and ghazals are 'hindi' or 'urdu'; Bhojpuri/Awadhi/Maithili folk get their own label")
     genre: Genre = Field(description="film = Bollywood/Hindi film song; ghazal; folk = lokgeet incl. Chhath/kajri/chaita/sohar/birha/nirgun; sufi/qawwali; classical; indie = non-film pop; devotional = bhajan/naat")
     reason: str = Field(description="short reason")
+    mood: Mood = Field(default="any", description="the song's main mood: sad (dard, judaai), romantic, energetic (dance, party), peaceful (sukoon), happy, devotional, nostalgic; 'any' if unclear")
 
 
 DEFAULT_RULES = {

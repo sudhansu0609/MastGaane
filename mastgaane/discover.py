@@ -87,10 +87,12 @@ def _artist_seeds(n: int) -> list[tuple[str, str]]:
     return out
 
 
-def _query_seeds(n: int) -> list[tuple[str, str]]:
-    """Seeds from rules.yaml `seed_queries` — searches that steer discovery (e.g. 1990s–2000s ghazals)."""
+def _query_seeds(n: int, queries: list[str] | None = None) -> list[tuple[str, str]]:
+    """Seeds from searches that steer discovery: rules.yaml `seed_queries` (e.g. 1990s–2000s ghazals),
+    or the given ones (a part of the day's `time_seeds`)."""
+    pool = list(rules().get("seed_queries", []) if queries is None else queries)
     out = []
-    for q in random.sample(list(rules().get("seed_queries", [])), min(n, len(rules().get("seed_queries", [])))):
+    for q in random.sample(pool, min(n, len(pool))):
         try:
             hit = next((h for h in _yt().search(q, filter="songs", limit=5) if h.get("videoId")), None)
         except Exception:
@@ -118,15 +120,41 @@ def seeds(n: int = 12, artist_share: float = 0.4, query_share: float = 0.25) -> 
     return out + _artist_seeds(n - len(out))
 
 
-def discover(n_seeds: int = 12, per_seed: int = 25, max_new: int = 60) -> dict:
-    """Queue up to `max_new` unseen songs from radios of the seeds. Returns counts."""
+TIME_MIN = 25  # a part of the day with fewer songs that suit it than this gets topped up
+
+
+def suits(tod: str) -> int:
+    """How many kept or new songs suit a part of the day (morning: bhakti and peaceful…)."""
+    from .jockey import _matches
+
+    with session() as s:
+        songs = s.exec(select(Song).where(Song.status.in_(("approved", "pending")), Song.yt_video_id.is_not(None))).all()
+    return sum(1 for x in songs if _matches(x, ("time", tod)))
+
+
+def top_up_times(min_songs: int = TIME_MIN, max_new: int = 20, only: str | None = None) -> dict:
+    """For each part of the day in rules.yaml `time_seeds` with fewer than `min_songs` songs that suit it
+    (or just `only`, always), discover more from its searches."""
+    out = {}
+    for tod, queries in (rules().get("time_seeds") or {}).items():
+        if only and tod != only:
+            continue
+        have = suits(tod)
+        if queries and (only or have < min_songs):
+            console.print(f"[bold]{tod}[/]: {have} songs suit it — searching {', '.join(queries[:3])}…")
+            out[tod] = discover(n_seeds=min(len(queries), 6), per_seed=20, max_new=max_new, queries=list(queries))
+    return out
+
+
+def discover(n_seeds: int = 12, per_seed: int = 25, max_new: int = 60, queries: list[str] | None = None) -> dict:
+    """Queue up to `max_new` unseen songs from radios of the seeds (or of these searches). Returns counts."""
     yt = _yt()
     kept = rejected = 0
     with session() as s:
         known = set(s.exec(select(Song.norm_key)).all())
         # each seed gets an equal share, so one radio cannot fill the whole round
         quota = max(3, -(-max_new // n_seeds))
-        for vid, label in seeds(n_seeds):
+        for vid, label in (_query_seeds(n_seeds, queries) if queries else seeds(n_seeds)):
             if kept + rejected >= max_new:
                 break
             taken = 0
@@ -149,6 +177,7 @@ def discover(n_seeds: int = 12, per_seed: int = 25, max_new: int = 60) -> dict:
                 s.add(Song(
                     title=title, artist=artist, norm_key=key, source_tier=TIER_DISCOVERED, confidence=0.9,
                     yt_video_id=tvid, keep=v.keep, genre=v.genre, language=v.language, year=_year(t.get("year")),
+                    mood="" if getattr(v, "mood", "any") == "any" else v.mood,
                     classify_reason=f"radio from {label}; {v.reason}"[:500], status="pending" if v.keep else "rejected",
                 ))
                 s.commit()

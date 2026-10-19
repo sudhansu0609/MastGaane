@@ -200,29 +200,29 @@ library:
     Hemant Kumar: 260
     Geeta Dutt: 200
     Shamshad Begum: 100
-    Suraiya: 60
+    Suraiya: 120
     Noor Jehan: 50
-    K. L. Saigal: 60
-    Mahendra Kapoor: 260
+    K. L. Saigal: 120
+    Mahendra Kapoor: 390
     Suman Kalyanpur: 130
     Bhupinder Singh: 200
     Yesudas: 100
-    Sulakshana Pandit: 35
-    Hemlata: 40
+    Sulakshana Pandit: 70
+    Hemlata: 80
     # the composers: their films' songs
     R. D. Burman: 580
     S. D. Burman: 390
-    Laxmikant-Pyarelal: 520
+    Laxmikant-Pyarelal: 780
     Shankar-Jaikishan: 460
-    Madan Mohan: 290
-    Naushad: 290
+    Madan Mohan: 440
+    Naushad: 440
     O. P. Nayyar: 260
     Kalyanji-Anandji: 320
     Khayyam: 170
     Roshan: 130
     Salil Chowdhury: 100
     Chitragupta: 80
-    Rajesh Roshan: 100
+    Rajesh Roshan: 150
     Bappi Lahiri: 100
     # the 1980s–2000s
     Kumar Sanu: 460
@@ -231,215 +231,285 @@ library:
     Kavita Krishnamurthy: 200
     Anuradha Paudwal: 200
     Sadhana Sargam: 140
-    Abhijeet Bhattacharya: 130
+    Abhijeet Bhattacharya: 200
     Mohammed Aziz: 100
     Suresh Wadkar: 160
-    Amit Kumar: 80
-    Shabbir Kumar: 35
+    Amit Kumar: 160
+    Shabbir Kumar: 70
     S. P. Balasubrahmanyam: 60
-    Nitin Mukesh: 35
-    Shailendra Singh: 30
-    Vinod Rathod: 30
+    Nitin Mukesh: 70
+    Shailendra Singh: 60
+    Vinod Rathod: 60
     Sonu Nigam: 290
     KK: 120
-    Shaan: 100
-    Sukhwinder Singh: 50
-    Roop Kumar Rathod: 80
-    Jaspinder Narula: 25
-    Lucky Ali: 50
+    Shaan: 150
+    Sukhwinder Singh: 100
+    Roop Kumar Rathod: 160
+    Jaspinder Narula: 50
+    Lucky Ali: 100
     Shreya Ghoshal: 160
-    Sunidhi Chauhan: 90
-    Kailash Kher: 35
+    Sunidhi Chauhan: 180
+    Kailash Kher: 70
     Nadeem-Shravan: 260
     Jatin-Lalit: 170
     Anu Malik: 140
     A. R. Rahman: 170
-    Vishal-Shekhar: 60
-    Shankar-Ehsaan-Loy: 80
+    Vishal-Shekhar: 120
+    Shankar-Ehsaan-Loy: 160
     Ravindra Jain: 130
-    Anand-Milind: 100
-    Raamlaxman: 35
-    Usha Khanna: 80
+    Anand-Milind: 150
+    Raamlaxman: 70
+    Usha Khanna: 160
     Shiv-Hari: 30
-    Viju Shah: 30
-    Ismail Darbar: 30
-    Vishal Bhardwaj: 30
-    Uttam Singh: 25
-    Himesh Reshammiya: 50
+    Viju Shah: 60
+    Ismail Darbar: 60
+    Vishal Bhardwaj: 60
+    Uttam Singh: 50
+    Himesh Reshammiya: 100
     Pritam: 100
     Shankar Mahadevan: 40
-    Kunal Ganjawala: 30
-    Adnan Sami: 50
-    Atif Aslam: 35
-    Mohit Chauhan: 35
-    Javed Ali: 30
-    Babul Supriyo: 30
-    Sapna Mukherjee: 25
+    Kunal Ganjawala: 60
+    Adnan Sami: 100
+    Atif Aslam: 70
+    Mohit Chauhan: 70
+    Javed Ali: 60
+    Babul Supriyo: 60
+    Sapna Mukherjee: 50
     Mahalakshmi Iyer: 25
     # ghazals
     Jagjit Singh: 650
     Ghulam Ali: 390
-    Mehdi Hassan: 320
-    Pankaj Udhas: 320
-    Talat Aziz: 160
+    Mehdi Hassan: 480
+    Pankaj Udhas: 480
+    Talat Aziz: 240
     Chitra Singh: 100
-    Begum Akhtar: 130
-    Farida Khanum: 80
-    Iqbal Bano: 60
-    Chandan Dass: 80
-    Hariharan: 260
+    Begum Akhtar: 200
+    Farida Khanum: 160
+    Iqbal Bano: 120
+    Chandan Dass: 160
+    Hariharan: 390
     Ahmed & Mohammed Hussain: 100
     Penaz Masani: 60
     # more ghazal singers (18 Oct)
     Bhupinder Mitali: 80
-    Mitali Singh: 40
-    Rajendra Mehta: 50
-    Nayyara Noor: 50
-    Tina Sani: 40
-    Salma Agha: 40
-    Jaswinder Singh: 40
-    Vinod Sehgal: 30
-    Shishir Parkhie: 30
-    Ustad Amanat Ali Khan: 35
-    Asad Amanat Ali Khan: 30
-    Ghulam Abbas: 30
+    Mitali Singh: 80
+    Rajendra Mehta: 100
+    Nayyara Noor: 100
+    Tina Sani: 80
+    Salma Agha: 80
+    Jaswinder Singh: 80
+    Vinod Sehgal: 60
+    Shishir Parkhie: 60
+    Ustad Amanat Ali Khan: 70
+    Asad Amanat Ali Khan: 60
+    Ghulam Abbas: 60
     Pankaj Udhas Ghazals: 50
     Jagjit Singh Chitra Singh: 50
     # bhajans, for the mornings
     Anup Jalota: 260
     Hari Om Sharan: 120
-    Narendra Chanchal: 60
+    Narendra Chanchal: 120
     Pandit Jasraj: 40
-    Gulshan Kumar: 50
-    Lakhbir Singh Lakkha: 60
+    Gulshan Kumar: 100
+    Lakhbir Singh Lakkha: 120
     # folk of the Hindi belt
     Sharda Sinha: 320
     Malini Awasthi: 160
-    Bharat Sharma Vyas: 260
+    Bharat Sharma Vyas: 390
     Chandan Tiwari: 160
     Kalpana Patowary: 160
-    Manoj Tiwari: 650
+    Manoj Tiwari: 980
     # the golden age, deeper (18 Oct: "more songs of golden era artists")
-    Sudha Malhotra: 40
-    Meena Kapoor: 25
+    Sudha Malhotra: 80
+    Meena Kapoor: 50
     Zohrabai Ambalewali: 30
-    Amirbai Karnataki: 30
-    Rajkumari: 30
+    Amirbai Karnataki: 60
+    Rajkumari: 60
     Subir Sen: 25
-    Kamal Barot: 25
+    Kamal Barot: 50
     Sharda: 35
-    Jagjit Kaur: 20
-    Khemchand Prakash: 35
-    Ghulam Haider: 30
+    Jagjit Kaur: 40
+    Khemchand Prakash: 70
+    Ghulam Haider: 60
     Hansraj Behl: 35
-    Bulo C. Rani: 25
-    S. N. Tripathi: 40
+    Bulo C. Rani: 50
+    S. N. Tripathi: 80
     Dattaram: 30
-    N. Dutta: 35
-    Iqbal Qureshi: 25
+    N. Dutta: 70
+    Iqbal Qureshi: 50
     G. S. Kohli: 25
     Hemant Bhosle: 20
     # more of the golden age and after (18 Oct: 15,000 songs)
     Ravi: 160
     C. Ramchandra: 160
-    Anil Biswas: 100
+    Anil Biswas: 150
     Jaidev: 100
-    Ghulam Mohammed: 80
-    Vasant Desai: 60
+    Ghulam Mohammed: 160
+    Vasant Desai: 120
     Husnlal-Bhagatram: 60
     Sajjad Hussain: 25
     Sonik-Omi: 30
     Sapan Jagmohan: 30
     Usha Mangeshkar: 100
-    Mubarak Begum: 50
+    Mubarak Begum: 100
     Minoo Purushottam: 25
-    Anwar: 40
-    Manhar Udhas: 50
-    Sudesh Bhosle: 40
-    Alisha Chinai: 40
-    Poornima: 30
-    Richa Sharma: 30
-    Aadesh Shrivastava: 40
+    Anwar: 80
+    Manhar Udhas: 100
+    Sudesh Bhosle: 80
+    Alisha Chinai: 80
+    Poornima: 60
+    Richa Sharma: 60
+    Aadesh Shrivastava: 80
     Dilip Sen-Sameer Sen: 30
     Arijit Singh: 100
-    Rahat Fateh Ali Khan: 80
-    Shafqat Amanat Ali: 35
-    Papon: 30
-    Jubin Nautiyal: 40
-    Armaan Malik: 35
+    Rahat Fateh Ali Khan: 160
+    Shafqat Amanat Ali: 70
+    Papon: 60
+    Jubin Nautiyal: 80
+    Armaan Malik: 70
     # qawwali and sufi
     Nusrat Fateh Ali Khan: 100
-    Sabri Brothers: 40
-    Abida Parveen: 60
+    Sabri Brothers: 80
+    Abida Parveen: 120
     Wadali Brothers: 50
-    Aziz Mian: 30
+    Aziz Mian: 60
     Habib Wali Mohammad: 60
-    Munni Begum: 80
+    Munni Begum: 160
     # classical-based and bhajans
-    Bhimsen Joshi: 35
+    Bhimsen Joshi: 70
     Kumar Gandharva: 25
-    Kishori Amonkar: 25
-    Vinod Agarwal: 40
+    Kishori Amonkar: 50
+    Vinod Agarwal: 80
     Anuradha Paudwal Bhajans: 50
     # Bhojpuri lokgeet: lots of it (18 Oct)
-    Madan Rai: 130
+    Madan Rai: 200
     Bhikhari Thakur: 40
     Vindhyavasini Devi: 50
     Devi: 100
-    Gopal Rai: 80
-    Tarabano Faizabadi: 40
+    Gopal Rai: 160
+    Tarabano Faizabadi: 80
     Balesar Yadav: 40
-    Mohan Rathore: 50
+    Mohan Rathore: 100
     Nitu Chandra Srivastava: 40
-    Vijaya Bharti: 40
-    Kavita Paudwal: 30
+    Vijaya Bharti: 80
+    Kavita Paudwal: 60
     Ajit Kumar Akela: 40
     Brij Kishor Dubey: 30
-    Anjali Bharti: 30
-    Indu Sonali: 60
-    Priyanka Singh: 40
+    Anjali Bharti: 60
+    Indu Sonali: 120
+    Priyanka Singh: 80
     Pawan Singh: 260
     Khesari Lal Yadav: 160
-    Dinesh Lal Yadav: 100
-    Ritesh Pandey: 80
-    Maithili Thakur: 80
-    Kunj Bihari Mishra: 30
+    Dinesh Lal Yadav: 150
+    Ritesh Pandey: 160
+    Maithili Thakur: 160
+    Kunj Bihari Mishra: 60
     # more good Bhojpuri singers (18 Oct: "Pawan Singh and other good Bhojpuri folk singers")
-    Pramod Premi Yadav: 60
+    Pramod Premi Yadav: 120
     Arvind Akela Kallu: 60
-    Rakesh Mishra: 60
-    Neelkamal Singh: 60
-    Ankush Raja: 50
-    Gunjan Singh: 50
-    Samar Singh: 50
-    Alok Kumar: 50
-    Shilpi Raj: 50
-    Anu Dubey: 60
-    Khushboo Uttam: 50
+    Rakesh Mishra: 120
+    Neelkamal Singh: 120
+    Ankush Raja: 100
+    Gunjan Singh: 100
+    Samar Singh: 100
+    Alok Kumar: 100
+    Shilpi Raj: 100
+    Anu Dubey: 120
+    Khushboo Uttam: 100
     Pawan Singh Bhakti: 50
     Nirahua Lokgeet: 40
-    Guddu Rangila: 40
+    Guddu Rangila: 80
     Vijay Lal Yadav: 40
-    Sunil Chhaila Bihari: 40
-    Bhai Ankush Raja: 20
+    Sunil Chhaila Bihari: 80
+    Bhai Ankush Raja: 40
     Kalpana Bhojpuri Lokgeet: 30
     # Rajasthani, a few
-    Mame Khan: 50
-    Ila Arun: 50
-    Seema Mishra: 60
-    Prakash Gandhi: 40
-    Allah Jilai Bai: 30
+    Mame Khan: 100
+    Ila Arun: 100
+    Seema Mishra: 120
+    Prakash Gandhi: 80
+    Allah Jilai Bai: 60
     Sadiq Khan Langa: 30
     Gazi Khan Barna: 25
-    Swaroop Khan: 30
+    Swaroop Khan: 60
     Anwar Khan Manganiyar: 25
     # Haryanvi, Garhwali, Kumaoni, a few
-    Master Satbir: 30
-    Rajbala Bahadurgarh: 25
-    Narendra Singh Negi: 50
-    Gopal Babu Goswami: 35
-    Meena Rana: 25
-    Pritam Bhartwan: 25
+    Master Satbir: 60
+    Rajbala Bahadurgarh: 50
+    Narendra Singh Negi: 100
+    Gopal Babu Goswami: 70
+    Meena Rana: 50
+    Pritam Bhartwan: 50
+    # the golden age, deeper still (19 Oct: "both" — new sources)
+    Uma Devi: 25
+    G. M. Durrani: 30
+    Surendra: 25
+    Pankaj Mullick: 30
+    Kanan Devi: 25
+    Khursheed: 25
+    Lalita Deulkar: 25
+    Krishna Kalle: 25
+    Vani Jairam: 40
+    Aarti Mukherjee: 30
+    Preeti Sagar: 30
+    Dilraj Kaur: 30
+    Chandrani Mukherjee: 25
+    Chhaya Ganguly: 20
+    Runa Laila: 40
+    Usha Uthup: 30
+    Sardar Malik: 30
+    Shyam Sundar: 25
+    Kanu Roy: 25
+    Hridaynath Mangeshkar: 40
+    Shyamji Ghanshyamji: 25
+    Nashad: 25
+    Snehal Bhatkar: 25
+    Avinash Vyas: 25
+    S. Mohinder: 25
+    # 1980s–2000s, more (19 Oct)
+    Nikhil-Vinay: 40
+    Anand Raj Anand: 50
+    M. M. Kreem: 40
+    Daboo Malik: 30
+    Sajid-Wajid: 50
+    Salim-Sulaiman: 40
+    Amit Trivedi: 40
+    Shantanu Moitra: 40
+    Sandesh Shandilya: 30
+    Ilaiyaraaja: 40
+    Hema Sardesai: 30
+    Shweta Shetty: 30
+    Anuradha Sriram: 30
+    K. S. Chithra: 50
+    Altaf Raja: 40
+    Falguni Pathak: 50
+    Shubha Mudgal: 40
+    Rekha Bhardwaj: 40
+    Shilpa Rao: 30
+    Kavita Seth: 30
+    Jolly Mukherjee: 25
+    Nazia Hassan: 30
+    Bali Brahmabhatt: 25
+    # ghazal, thumri and sufi, more (19 Oct)
+    Shobha Gurtu: 30
+    Girija Devi: 30
+    Malika Pukhraj: 30
+    Mukhtar Begum: 20
+    Ustad Rashid Khan: 30
+    Parveen Sultana: 25
+    Attaullah Khan Esakhelvi: 60
+    Rajkumar Rizvi: 30
+    Ashok Khosla: 25
+    Ghulam Farid Sabri: 30
+    Rahat Fateh Ali Khan Qawwali: 30
+    # bhajans, more (19 Oct)
+    Kumar Vishu: 50
+    Tripti Shakya: 40
+    Sanjeevani Bhelande: 30
+    Shailendra Bhartti: 30
+    Suresh Wadkar Bhajan: 30
+    Hariharan Bhajan: 30
+    Jagjit Singh Bhajan: 30
   playlists:
     - old hindi songs evergreen
     - 50s 60s hindi film songs
@@ -592,3 +662,61 @@ library:
     - haryanvi folk songs
     - garhwali songs old
     - kumaoni songs old
+    # by star and by mood (19 Oct: "both" — new sources)
+    - raj kapoor songs
+    - dev anand songs
+    - dilip kumar songs
+    - guru dutt songs
+    - shammi kapoor songs
+    - rajesh khanna songs
+    - amitabh bachchan songs 70s 80s
+    - dharmendra songs
+    - rishi kapoor songs
+    - jeetendra songs
+    - mithun chakraborty songs
+    - govinda songs 90s
+    - shah rukh khan 90s songs
+    - salman khan 90s songs
+    - aamir khan 90s songs
+    - madhuri dixit songs
+    - sridevi songs
+    - meena kumari songs
+    - waheeda rehman songs
+    - nutan songs
+    - vyjayanthimala songs
+    - sadhana songs
+    - asha parekh songs
+    - sharmila tagore songs
+    - rekha songs
+    - hema malini songs
+    - kishore kumar romantic songs
+    - kishore kumar r d burman songs
+    - lata mangeshkar romantic songs
+    - lata mangeshkar laxmikant pyarelal songs
+    - asha bhosle r d burman songs
+    - mahendra kapoor hits
+    - rafi kishore duets
+    - 70s romantic songs hindi
+    - 80s romantic songs hindi
+    - 80s sad songs hindi
+    - kumar sanu 90s hits
+    - udit narayan alka yagnik duets
+    - nadeem shravan hits
+    - anand milind hits
+    - jatin lalit hits
+    - anu malik 90s hits
+    - 90s ghazals
+    - old hindi qawwali
+    - bollywood mujra songs old
+    - old hindi wedding songs
+    - bidaai songs hindi
+    - rakhi songs hindi old
+    - diwali songs hindi old
+    - friendship songs old hindi
+    - safar songs old hindi
+    - bollywood cabaret songs old
+    - doordarshan old songs
+    - hindi film songs 1980s
+    - hindi film songs 1990s
+    - hindi film songs 2000s
+    - indipop 90s hindi

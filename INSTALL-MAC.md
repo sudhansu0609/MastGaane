@@ -37,8 +37,16 @@ cd B:\youtubeProjects\Buzzcaf_Media\MastGaane
 powershell -ExecutionPolicy Bypass -File installer\pack_for_mac.ps1
 ```
 
-This writes `Downloads\MastGaane-data.zip`, about 1.1 GB. Copy it to the Mac's **Downloads**
-folder with a USB drive or your own private cloud folder (iCloud Drive, Google Drive, OneDrive).
+This writes `Downloads\MastGaane-data.zip`, about 1.1 GB. Copy it to the Mac's **Downloads** folder.
+The easiest way, if both computers are on your Tailscale network, is Taildrop. Run this on the PC
+(`tailscale status` lists your Mac's name):
+
+```powershell
+& "C:\Program Files\Tailscale\tailscale.exe" file cp "$env:USERPROFILE\Downloads\MastGaane-data.zip" <your-mac-name>:
+```
+
+The zip lands in the Mac's Downloads. A USB drive or your own private cloud folder (iCloud Drive,
+Google Drive, OneDrive) works too.
 
 > The zip contains your API keys and the YouTube Music login. Never share it through a public
 > link, and delete it from the cloud folder once the Mac is set up.

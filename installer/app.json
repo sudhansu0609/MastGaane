@@ -1,0 +1,15 @@
+{
+  "id": "MastGaane",
+  "name": "MastGaane",
+  "description": "Instagram Reels songs, identified and built into playlists",
+  "version": "0.1.0",
+  "launch_target": "{root}\\.venv\\Scripts\\pythonw.exe",
+  "launch_args": "\"{root}\\installer\\run_mastgaane.pyw\"",
+  "icon": "assets\\MastGaane.ico",
+  "setup_script": "installer\\setup_env.ps1",
+  "env_summary": "uv-managed Python 3.13 venv (Playwright, FastAPI, Whisper, TTS)",
+  "estimated_mb": 1500,
+  "health_paths": [
+    ".venv\\Scripts\\python.exe"
+  ]
+}

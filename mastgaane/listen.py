@@ -3,8 +3,10 @@
 Where the sound comes from:
 - mic      — a microphone on this PC. ffmpeg records every real mic at once and the loudest take
              wins (Windows' default mic on this PC is a silent virtual device). Bluetooth hands-free
-             mics ("Headset (…)") are left alone: opening one drops the headphones into call quality.
+             mics ("Headset (…)", AirPods) are left alone: opening one drops the headphones into call
+             quality. Windows: DirectShow; Mac: AVFoundation (the app needs the Microphone permission).
 - pc       — what this PC itself is playing (loopback of the default speaker): a reel, a video.
+             Windows only: macOS cannot record its own output without an add-on such as BlackHole.
 - phone    — any audio or video file; the /listen page records one with the phone camera
              (`file` is the same from the command line).
 - shortcut — the iPhone's own Shazam action already named it; only the saving happens here.
@@ -34,7 +36,8 @@ from .resolver.fingerprint import audd_result, shazam_track
 
 console = Console()
 TIER_HEARD = 5
-NOT_A_MIC = re.compile(r"virtual|oculus|stereo mix|cable|voicemeeter|steam streaming|^headset \(", re.I)
+NOT_A_MIC = re.compile(r"virtual|oculus|stereo mix|cable|voicemeeter|steam streaming|^headset \(|"
+                       r"blackhole|soundflower|loopback|zoomaudio|teams audio|aggregate|airpods", re.I)
 SILENCE_DB = -70.0  # RMS below this is a dead, unplugged or muted input (a quiet room reads -50…-90 on the Brio)
 FAINT_DB = -50.0  # a miss quieter than this gets "move nearer" advice
 RATE = 44100
@@ -62,14 +65,35 @@ class Heard:
 
 
 # ----------------------------------------------------------------------------- recording
-def _dshow_audio() -> list[str]:
+def audio_devices() -> list[str]:
+    """This computer's microphones, by the names ffmpeg knows them (Windows DirectShow, macOS AVFoundation)."""
+    if sys.platform == "win32":
+        cmd = ["ffmpeg", "-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"]
+    elif sys.platform == "darwin":
+        cmd = ["ffmpeg", "-hide_banner", "-f", "avfoundation", "-list_devices", "true", "-i", ""]
+    else:
+        return []
     try:
-        err = subprocess.run(["ffmpeg", "-hide_banner", "-list_devices", "true", "-f", "dshow", "-i", "dummy"],
-                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
+        err = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20,
                              creationflags=_NOWINDOW).stderr
     except (OSError, subprocess.TimeoutExpired):
         return []
-    return re.findall(r'"([^"]+)" \(audio\)', err)
+    return parse_devices(err, sys.platform)
+
+
+def parse_devices(listing: str, platform: str) -> list[str]:
+    """The audio input names in ffmpeg's -list_devices output."""
+    if platform == "darwin":  # [AVFoundation indev @ 0x…] [0] MacBook Pro Microphone, after the video ones
+        audio = listing.split("AVFoundation audio devices:", 1)
+        return re.findall(r"\] \[\d+\] (.+?)\s*$", audio[1], re.M) if len(audio) == 2 else []
+    return re.findall(r'"([^"]+)" \(audio\)', listing)
+
+
+def mic_input(name: str, low_latency: bool = False) -> list[str]:
+    """ffmpeg's input arguments for the microphone called `name`."""
+    if sys.platform == "darwin":
+        return ["-f", "avfoundation", "-i", f":{name}"]
+    return ["-f", "dshow", *(["-audio_buffer_size", "50"] if low_latency else []), "-i", f"audio={name}"]
 
 
 def preferred(names: list[str], want: str) -> list[str]:
@@ -84,7 +108,7 @@ def preferred(names: list[str], want: str) -> list[str]:
 
 def mics() -> list[str]:
     """The microphones `mic` listens with: LISTEN_MIC's match, else every real one."""
-    names = _dshow_audio()
+    names = audio_devices()
     want = settings.listen_mic.strip().lower()
     if want:
         return preferred(names, want)
@@ -108,7 +132,7 @@ def record_mics(seconds: int, folder: Path) -> list[tuple[Path, float, str]]:
     procs = []
     for i, name in enumerate(names):
         out = folder / f"mic{i}.wav"
-        p = subprocess.Popen(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "dshow", "-i", f"audio={name}",
+        p = subprocess.Popen(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *mic_input(name),
                               "-t", str(seconds), "-ac", "1", "-ar", str(RATE), "-c:a", "pcm_s16le", str(out)],
                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                              creationflags=_NOWINDOW)
@@ -141,6 +165,10 @@ def _write_wav(path: Path, mono: np.ndarray) -> Path:
 def record_pc(seconds: int, folder: Path) -> Path:
     """What the default speaker is playing right now (WASAPI loopback)."""
     import warnings
+
+    if sys.platform == "darwin":
+        raise ListenError("a Mac cannot record its own sound without an add-on such as BlackHole — use the mic "
+                          "or a recording instead")
 
     try:
         import soundcard as sc

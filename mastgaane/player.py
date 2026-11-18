@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import json
 import time
 from typing import Callable
 
@@ -21,6 +22,24 @@ console = Console()
 MAX_FAILURES = 5  # in a row — then stop instead of spinning through a broken queue
 DUCK_LEVEL = 0.2  # the music's volume while you speak a voice command
 BOUNCE_S = 2.5  # a second skip / like / dislike this soon is the same command heard twice
+# Windows gives every process its own volume (duck.Keeper holds ffplay's). macOS and Linux do not, and
+# ffplay cannot change its volume once it plays: there a new level restarts it where it was (-ss, -volume)
+PER_PROCESS_VOLUME = sys.platform == "win32"
+LEVEL_EPS = 0.005
+
+
+def _volume_file():
+    from .config import settings
+
+    return settings.data_dir / "volume.json"
+
+
+def _load_volume() -> float:
+    """The owner's volume for the music (0…1), kept across restarts in data/volume.json."""
+    try:
+        return max(0.0, min(1.0, float(json.loads(_volume_file().read_text(encoding="utf-8"))["volume"])))
+    except Exception:
+        return 1.0
 
 
 def _set_level(pid: int, level: float, wait_s: float = 0.0) -> None:
@@ -58,12 +77,16 @@ class Player:
         self._duck: float | None = None  # the sound's level while a voice command is spoken (None = full)
         self._duck_token = 0
         self.muted = False  # no sound, the show going on: songs and the host's links play on silently
+        self.volume = _load_volume()  # the owner's level (0…1); the Keeper holds ffplay here, so the
+        # Volume Mixer slider (or Dexter's per-app volume) is put back within a second - this is the knob
         self._last_cmd: dict[str, float] = {}
         self.started_at = -1e9  # when the current link or song began to sound (voice control: was that us?)
         self.link_ended_at = -1e9  # when the host last stopped talking (her words may sound like wake words)
         from .duck import Keeper
 
-        self._volume = Keeper()  # holds the current ffplay at full volume, or at the dip
+        self._volume = Keeper()  # holds the current ffplay at the owner's volume, or at the dip
+        self._src = ""  # what the current ffplay plays, and the level it was started at (no PER_PROCESS_VOLUME)
+        self._proc_level = 1.0
 
     # ------------------------------------------------------------------ commands
     def play(self, focus: str = "", talk: bool = True, links: str = "") -> dict:
@@ -136,13 +159,27 @@ class Player:
         songs end and the next ones start, silently; play, resume or unmute bring the sound back."""
         with self._lock:
             self.muted = (not self.muted) if on is None else bool(on)
-            proc = self._proc
-        if proc and proc.poll() is None:
-            self._volume.hold(proc.pid, self._level())
+        self._apply_level()
         return self.now()
 
     def unmute(self) -> dict:
         return self.mute(False)
+
+    def set_volume(self, level: float | None = None, change: float | None = None) -> dict:
+        """The music's volume in percent: `level` sets it (0-100), `change` moves it (+10 / -30). It sticks
+        across songs and restarts; a duck still dips below it, and a change unmutes."""
+        with self._lock:
+            current = self.volume * 100
+            target = level if level is not None else (current + change if change is not None else current)
+            self.volume = round(max(0.0, min(100.0, float(target)))) / 100
+            if level is not None or change is not None:
+                self.muted = False
+            try:
+                _volume_file().write_text(json.dumps({"volume": self.volume}), encoding="utf-8")
+            except OSError:
+                pass
+        self._apply_level()
+        return self.now()
 
     def skip(self) -> dict:
         if self._bounced("skip"):
@@ -173,9 +210,8 @@ class Player:
         with self._lock:
             self._duck = level
             self._duck_token += 1
-            token, proc = self._duck_token, self._proc
-        if proc and proc.poll() is None:
-            self._volume.hold(proc.pid, self._level())
+            token = self._duck_token
+        self._apply_level()
         if level is not None and seconds:
             timer = threading.Timer(seconds, self._unduck_if, args=(token,))
             timer.daemon = True  # a pending "back up" must not keep a shutting-down server alive
@@ -209,7 +245,7 @@ class Player:
                 "mood": it.mood if it else "",
                 "listened_s": round(self._listened(), 1),
                 "upcoming": self._upcoming.title if self._upcoming and running else "",
-                "muted": self.muted,
+                "muted": self.muted, "volume": round(self.volume * 100),
                 "fell_back_from": self.fell_back_from, "message": self.message,
             }
 
@@ -226,6 +262,9 @@ class Player:
         if self._proc and self.paused:
             import psutil
 
+            if not PER_PROCESS_VOLUME and abs(self._level() - self._proc_level) > LEVEL_EPS:
+                self._respawn()  # the level changed during the pause: come back in at the new one
+                return
             try:
                 psutil.Process(self._proc.pid).resume()
             except Exception:
@@ -234,16 +273,63 @@ class Player:
             self.paused = False
 
     def _level(self) -> float:
-        """The volume the current ffplay is held at: none while muted, the dip while a command is spoken."""
+        """The volume the current ffplay is held at: none while muted, the dip (never above the owner's
+        volume) while a command is spoken, else the owner's volume."""
         if self.muted:
             return 0.0
-        return 1.0 if self._duck is None else self._duck
+        return self.volume if self._duck is None else min(self.volume, self._duck)
 
     def _unmute(self) -> None:
         if self.muted:
             self.muted = False
-            if self._proc and self._proc.poll() is None:
-                self._volume.hold(self._proc.pid, self._level())
+            self._apply_level()
+
+    def _apply_level(self) -> None:
+        """The current ffplay to _level(): Windows sets its session volume; elsewhere it restarts at its
+        spot with the new -volume (while paused, that waits for the resume)."""
+        with self._lock:
+            proc = self._proc
+            if not proc or proc.poll() is not None:
+                return
+            if PER_PROCESS_VOLUME:
+                self._volume.hold(proc.pid, self._level())
+            elif not self.paused and abs(self._level() - self._proc_level) > LEVEL_EPS:
+                self._respawn()
+
+    def _spawn(self, start: float = 0.0) -> subprocess.Popen:
+        """ffplay on self._src from `start` seconds. Locked by the caller."""
+        exe = ffplay_path()
+        if not exe:
+            raise RuntimeError("ffplay (FFmpeg) is not on PATH")
+        args = [exe, "-nodisp", "-autoexit", "-loglevel", "error"]
+        self._proc_level = self._level()
+        if not PER_PROCESS_VOLUME:
+            args += ["-volume", str(round(self._proc_level * 100))]
+        if start > 0.05:
+            args += ["-ss", f"{start:.2f}"]
+        flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+        return subprocess.Popen([*args, self._url(self._src)], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, creationflags=flags)
+
+    def _respawn(self) -> None:
+        """Locked. The same file again from where it is, at the new level; the old process goes, and
+        _play() carries on waiting for the new one (seconds heard go on counting, nothing is recorded)."""
+        import psutil
+
+        old = self._proc
+        if not self.paused:
+            self._played += time.monotonic() - self._seg_start
+        try:
+            new = self._spawn(start=self._played)
+        except Exception as e:
+            console.log(f"[yellow]player: could not change the volume: {e}[/]")
+            return
+        self._proc, self._seg_start, self.paused = new, time.monotonic(), False
+        try:
+            psutil.Process(old.pid).resume()  # a suspended process cannot exit cleanly
+        except Exception:
+            pass
+        old.terminate()
 
     def _kill(self) -> None:
         if self._proc and self._proc.poll() is None:
@@ -269,26 +355,26 @@ class Player:
 
     def _play(self, path: str) -> tuple[bool, float]:
         """Play one file to the end (True) or until a command cuts it (False); returns seconds heard."""
-        exe = ffplay_path()
-        if not exe:
-            raise RuntimeError("ffplay (FFmpeg) is not on PATH")
-        flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         with self._lock:
             if self._cmd:
                 return False, 0.0
-            self._proc = subprocess.Popen([exe, "-nodisp", "-autoexit", "-loglevel", "error", self._url(path)],
-                                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                          creationflags=flags)
+            self._src = path
+            self._proc = self._spawn()
             self._played, self._seg_start, self.paused = 0.0, time.monotonic(), False
             self.started_at = self._seg_start
-            # always held: Windows remembers ffplay's last session volume, maybe an earlier dip
-            self._volume.hold(self._proc.pid, self._level())
-        rc = self._proc.wait()
-        with self._lock:
-            if not self.paused:
-                self._played += time.monotonic() - self._seg_start
-            heard, self.paused, self._proc = self._played, False, None
-            return rc == 0 and self._cmd is None, heard
+            if PER_PROCESS_VOLUME:  # always held: Windows remembers ffplay's last session volume, maybe a dip
+                self._volume.hold(self._proc.pid, self._level())
+            proc = self._proc
+        while True:
+            rc = proc.wait()
+            with self._lock:
+                if self._proc is not proc:
+                    proc = self._proc  # restarted at a new volume (_respawn): the song goes on in that one
+                    continue
+                if not self.paused:
+                    self._played += time.monotonic() - self._seg_start
+                heard, self.paused, self._proc = self._played, False, None
+                return rc == 0 and self._cmd is None, heard
 
     def _fall_back(self, previous: str) -> jockey.Item | None:
         """The wish matched nothing: drop it, pick from the usual mix, and have the host say why."""

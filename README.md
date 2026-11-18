@@ -12,6 +12,32 @@ nightly task ─► harvest (your Chrome scrolls /reels, listens to Instagram's 
 web UI (localhost, MASTGAANE_PORT or 8787 - it steps forward if that is busy and prints `READY port=N`): approve / reject / edit songs, embedded player, open in each service
 ```
 
+## Install
+
+```bat
+installer\MastGaane Setup.exe
+```
+
+Installs in place (this folder stays where it is): it runs `uv sync` to (re)build `.venv`
+with every dependency, then adds a Desktop and Start Menu shortcut (opens `mastgaane serve`
+with no console window) and an Apps & features entry. Re-run it any time to repair the
+environment; **Uninstall MastGaane** removes only the shortcuts and registry entry, never
+the folder, the database or `.env`. The manual equivalent of the environment step:
+
+```bat
+powershell -ExecutionPolicy Bypass -File installer\setup_env.ps1
+```
+
+It still leaves the one-time account logins below to do by hand.
+
+**On a Mac:** see [INSTALL-MAC.md](INSTALL-MAC.md): `bash installer/install_mac.sh` installs the tools,
+the Python environment, every song and `MastGaane.app`. `installer\pack_for_mac.ps1` packs this PC's
+data (database, downloaded songs, keys) into one zip for it.
+
+**The song catalogue** (`library/songs.jsonl.gz`, in git) holds every song (no reels, no listening
+history), so a new computer starts with the whole collection: `uv run mastgaane export-songs` writes it,
+`uv run mastgaane import-songs` adds the songs a database lacks.
+
 ## Setup (once)
 
 ```powershell
@@ -138,6 +164,7 @@ about echoes is about that mic.
 | "I like this" · "badhiya" / "I don't like this" · "hatao" | like / never again |
 | "what's playing?" · "kaun sa gaana hai" | a notification with the song |
 | "mute" · "awaaz band karo" / "unmute" · "awaaz kholo" | sound off, the songs going on / sound back |
+| "volume kam karo" · "awaaz badhao" · "louder" / "softer" · "bahut kam" · "volume 50" | the music 20% down / up (40% with "bahut"), or to that level; it sticks across songs. Past 100%, "louder" turns up the PC's speakers |
 | "ghazal sunao" · "gajal" · "Hawa Mahal lagao" · "Jagjit Singh ke gaane" · "something sad" · "purane gaane" | play that |
 
 **Mishearings** are corrected the way Dexter's lexicon does it (`mastgaane/lexicon.py`): Whisper hears

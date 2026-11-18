@@ -2,6 +2,8 @@
 __pycache__/
 *.pyc
 .env
+installer/installed.json
+logs/
 data/
 reports/
 chrome-profile/
@@ -10,3 +12,4 @@ browser.json
 *.m4a
 *.mp3
 *.webm
+installer/setup.running

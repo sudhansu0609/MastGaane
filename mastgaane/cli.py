@@ -100,7 +100,7 @@ def serve(
     port: Optional[int] = typer.Option(None, help="Preferred port (default: MASTGAANE_PORT, else 8787). Busy? we step forward."),
     host: str = "127.0.0.1",
     lan: bool = typer.Option(False, help="Listen on all interfaces so your phone can open it"),
-    tray: Optional[bool] = typer.Option(None, help="Icon in the Windows tray to pause / stop the music or quit (default: TRAY)"),
+    tray: Optional[bool] = typer.Option(None, help="Icon in the Windows tray / Mac menu bar to pause / stop the music or quit (default: TRAY)"),
     listen: Optional[bool] = typer.Option(None, help="Voice commands on its own mic too, not only from Dexter: \"Bharti, agla gaana\" (default: VOICE_CONTROL)"),
 ):
     """Start the local web UI (review songs, play them)."""
@@ -159,7 +159,22 @@ def serve(
     if icon is not None:
         icon.voice = voice
     try:
-        server.run()
+        if icon is not None and icon.on_main_thread:  # a Mac: the menu-bar icon needs the main thread
+            import threading
+
+            def run_server() -> None:
+                try:
+                    server.run()
+                finally:
+                    icon.stop()  # the server ended (Dexter's close, /api/shutdown): the icon goes too
+
+            beside = threading.Thread(target=run_server, name="mastgaane-server")
+            beside.start()
+            icon.run_here()  # until Quit or the server ends
+            server.should_exit = True
+            beside.join(timeout=15)
+        else:
+            server.run()
     finally:
         if voice is not None:
             voice.stop()
@@ -312,6 +327,27 @@ def library(
     if not stats:
         build(target=target, modern_max=modern_max)
     console.print(summary())
+
+
+@app.command("export-songs")
+def export_songs(path: Optional[Path] = typer.Argument(None, help="default: library/songs.jsonl.gz (in git)")):
+    """Write every song (no reels, no listening history) to the catalogue file in git, for another computer."""
+    from .catalogue import DEFAULT, export
+
+    n = export(path or DEFAULT)
+    console.print(f"[green]{n} songs[/] → {path or DEFAULT}")
+
+
+@app.command("import-songs")
+def import_songs(path: Optional[Path] = typer.Argument(None, help="default: library/songs.jsonl.gz (in git)")):
+    """Add the catalogue's songs this database does not have yet (a new install, or after a git pull)."""
+    from .catalogue import DEFAULT, load
+
+    src = path or DEFAULT
+    if not src.exists():
+        raise typer.BadParameter(f"{src} not found")
+    added, known = load(src)
+    console.print(f"[green]{added} songs added[/], {known} already here.")
 
 
 @app.command()

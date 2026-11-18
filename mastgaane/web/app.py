@@ -370,6 +370,19 @@ def player_duck(req: DuckRequest | None = None):
     return _said(player().now())
 
 
+class VolumeRequest(BaseModel):
+    level: Optional[float] = None  # 0-100
+    change: Optional[float] = None  # +10 / -30; neither = just report it
+
+
+@app.post("/api/player/volume")
+def player_volume(req: VolumeRequest | None = None):
+    """The music's own volume (Dexter: "MastGaane volume down by 30%"). It has to be set here: the player
+    holds ffplay's Windows session at this level, so the Volume Mixer slider snaps back within a second."""
+    req = req or VolumeRequest()
+    return _said(player().set_volume(req.level, req.change))
+
+
 @app.post("/api/player/{action}")
 def player_action(action: str):
     p = player()

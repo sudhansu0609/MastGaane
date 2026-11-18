@@ -169,6 +169,15 @@ def test_prompt_echoes(wake, text, nsp, echo):
     ("unmute", "unmute", ""), ("un mute", "unmute", ""), ("awaaz kholo", "unmute", ""), ("awaaz chalu karo", "unmute", ""),
     ("sound on", "unmute", ""), ("unmute and play ghazals", "play", "ghazals"),
     ("khamoshi sunao", "play", "khamoshi"),  # a song, not "khamosh" (quiet)
+    ("volume kam karo", "softer", "20"), ("awaaz kam kar do", "softer", "20"), ("thoda dheema karo", "softer", "20"),
+    ("turn it down", "softer", "20"), ("reduce the volume", "softer", "20"), ("quieter", "softer", "20"),
+    ("आवाज़ कम करो", "softer", "20"), ("awaaz bahut kam karo", "softer", "40"), ("volume down by 30", "softer", "30"),
+    ("awaaz badhao", "louder", "20"), ("volume up", "louder", "20"), ("louder", "louder", "20"),
+    ("increase the volume", "louder", "20"), ("sound thoda tez karo", "louder", "20"), ("valume badha do", "louder", "20"),
+    ("आवाज़ बढ़ाओ", "louder", "20"), ("volume 50", "volume", "50"),
+    ("volume off", "mute", ""), ("volume on", "unmute", ""),
+    ("dheere dheere sunao", "play", "dheere dheere"),  # a song, not "softer"
+    ("flower songs sunao", "play", "flower"),  # not "lower"
 ])
 def test_commands(asked, action, focus):
     from mastgaane.voice_control import parse
@@ -242,10 +251,16 @@ class FakePlayer:
     def __init__(self, phase="main", state="playing"):
         self.calls, self.phase, self.state = [], phase, state
         self.link_ended_at = -1e9
+        self.volume = 100
 
     def now(self):
         return {"state": self.state, "phase": self.phase, "kind": "song", "title": "Dil Ka Rishta", "artist": "Udit",
-                "programme": "", "message": "", "wish": ""}
+                "programme": "", "message": "", "wish": "", "volume": self.volume}
+
+    def set_volume(self, level=None, change=None):
+        self.calls.append(("set_volume", level, change))
+        self.volume = max(0, min(100, level if level is not None else self.volume + (change or 0)))
+        return self.now()
 
     def __getattr__(self, name):
         if name in ("skip", "pause", "resume", "stop", "like", "dislike", "duck", "mute"):
@@ -406,6 +421,22 @@ def test_mute_and_unmute_by_voice(db, wake):
     assert vc.handle("Bharti, unmute") == "Sound back on" and p.calls[-1] == ("mute", False)
     p.phase = "link"  # her own voice is the noise: mute is obeyed while she talks
     assert vc.handle("Bharti, mute").startswith("Muted") and p.calls[-1] == ("mute", True)
+
+
+def test_volume_by_voice(db, wake, monkeypatch):
+    from mastgaane import duck
+
+    speakers = []
+    monkeypatch.setattr(duck, "speakers", lambda step: speakers.append(step) or 0.75)
+    p, vc = control()
+    assert vc.handle("Bharti, volume kam karo") == "Softer — volume 80%" and p.calls[-1] == ("set_volume", None, -20)
+    assert vc.handle("Radio, awaaz bahut kam karo") == "Softer — volume 40%"
+    assert vc.handle("Bharti, awaaz badhao") == "Louder — volume 60%" and not speakers
+    assert vc.handle("Bharti, volume 10") == "Volume 10%"
+    assert vc.handle("Bharti, thoda dheema karo") == "As low as it goes — say “Bharti, mute” for silence"
+    p.phase = "link"  # obeyed while she talks too
+    assert vc.handle("Bharti, volume 100") == "Volume 100%"
+    assert vc.handle("Bharti, louder") == "Louder — speakers at 75%" and speakers == [0.1]  # past full: the PC
 
 
 # ----------------------------------------------------------------------------- recording the command

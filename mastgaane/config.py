@@ -1,10 +1,20 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def default_chrome() -> str:
+    """Where Google Chrome lives on this OS (CHROME_PATH overrides it; an empty one means this)."""
+    if sys.platform == "darwin":
+        return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    if sys.platform == "win32":
+        return "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
+    return "google-chrome"
 
 
 class Settings(BaseSettings):
@@ -14,7 +24,7 @@ class Settings(BaseSettings):
                                       env_ignore_empty=True)
 
     # Harvester
-    chrome_path: str = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
+    chrome_path: str = default_chrome()
     chrome_profile_dir: Path = ROOT / "chrome-profile"
     chrome_debug_port: int = 9555
     headless: bool = False

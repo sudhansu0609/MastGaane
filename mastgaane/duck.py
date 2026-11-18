@@ -5,10 +5,12 @@ ffplay cannot change its volume once it plays, so this sets the volume of its Wi
 the process makes sound, and Windows remembers ffplay's last session volume (a dip from an earlier
 song included), so `Keeper` does not set the level once and hope: one thread holds the current
 process at the level asked for, applying it as soon as the session exists and again whenever it is
-found elsewhere (checked every second). Windows only; elsewhere it does nothing.
+found elsewhere (checked every second). Windows only; elsewhere it does nothing — macOS has no
+per-app volume, so there the player restarts ffplay where it was at the new level (player.py).
 """
 from __future__ import annotations
 
+import subprocess
 import sys
 import threading
 import time
@@ -92,3 +94,48 @@ class Keeper:
                 if vols or time.monotonic() >= deadline or self._changed.is_set():
                     break
                 time.sleep(0.03)  # a muted song's first moments sound until its session is found
+
+
+def speakers(step: float) -> float | None:
+    """Turn the PC's own speakers (Windows' master volume) up or down by `step` (0…1); returns the new
+    level, None where it cannot. For "louder" once the music's own session is at full."""
+    if sys.platform == "darwin":
+        return _mac_speakers(step)
+    if sys.platform != "win32":
+        return None
+    try:
+        import comtypes
+
+        comtypes.CoInitialize()
+    except Exception:
+        return None
+    try:
+        from pycaw.pycaw import AudioUtilities
+
+        vol = AudioUtilities.GetSpeakers().EndpointVolume
+        level = max(0.0, min(1.0, vol.GetMasterVolumeLevelScalar() + step))
+        vol.SetMasterVolumeLevelScalar(level, None)
+        if level > 0:
+            vol.SetMute(0, None)
+        return level
+    except Exception:
+        return None
+    finally:
+        try:
+            comtypes.CoUninitialize()
+        except Exception:
+            pass
+
+
+def _mac_speakers(step: float) -> float | None:
+    """The Mac's output volume (System Settings → Sound), through AppleScript."""
+    def osa(script: str) -> str:
+        return subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=5,
+                              check=True).stdout.strip()
+
+    try:
+        level = max(0.0, min(1.0, int(osa("output volume of (get volume settings)")) / 100 + step))
+        osa(f"set volume output volume {round(level * 100)}" + (" without output muted" if level > 0 else ""))
+        return level
+    except Exception:  # no osascript, or an output with no volume of its own (some HDMI / USB devices)
+        return None

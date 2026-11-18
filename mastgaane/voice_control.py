@@ -62,8 +62,11 @@ RATE = 16000
 FRAME = 480  # 30 ms
 DIP_MAX_S = 12.0  # the music comes back up after this even if nothing was understood
 WINDOW_S, HOP_S = 3.0, 1.5  # music in the room is read in 3 s windows every 1.5 s
-WHILE_HOST_TALKS = {"stop", "pause", "next", "mute", "unmute"}  # obeyed even while the host speaks; other wishes wait
-QUICK = {"next", "stop", "pause", "resume", "like", "dislike", "now", "mute", "unmute"}  # done on the fast model's word
+VOLUME = {"louder", "softer", "volume"}
+WHILE_HOST_TALKS = {"stop", "pause", "next", "mute", "unmute", *VOLUME}  # obeyed even while the host speaks; other wishes wait
+QUICK = {"next", "stop", "pause", "resume", "like", "dislike", "now", "mute", "unmute", *VOLUME}  # done on the fast model's word
+VOLUME_STEP = 20  # percent, one "louder" / "softer"; "bahut" / "much" is two
+VOLUME_FLOOR = 10  # "softer" stops here: silence is "mute"
 HOST_TAIL_S = 4.5  # the host's words are still in the mic's windows this long after she stops
 ARM_S = 6.0  # after the name alone: how long the command may take to begin
 CAPTURE_MAX_S = 7.0  # the longest command recorded
@@ -225,6 +228,8 @@ def _command_words() -> list[str]:
     raha"), and then to the mood "calm" (caught in testing)."""
     words = {p for group in (NOW, DISLIKE, LIKE, PAUSE, STOP, NEXT, RESUME, PLAY, MUTE, UNMUTE) for p in group
              if " " not in p}
+    # the volume words that cannot be a piece of a wish ("lower" would take "flower")
+    words |= {*_AWAAZ, "volume", "louder", "softer", "quieter", "badhao", "ghatao", "dheema"}
     return sorted(w for w in words | {"gaana", "gaane", "sunao", "chalao", "lagao", "bajao"} if w.isascii() and len(w) >= 4)
 
 
@@ -252,7 +257,7 @@ def canon(text: str) -> str:
 
 @dataclass
 class Command:
-    action: str  # next | pause | resume | stop | like | dislike | now | mute | unmute | play
+    action: str  # next | pause | resume | stop | like | dislike | now | mute | unmute | louder | softer | volume | play
     focus: str = ""
 
 
@@ -275,6 +280,18 @@ MUTE = ("mute", "muted", "sound off", "volume off", "silent", "silence", "म्
 UNMUTE = ("unmute", "un mute", "unmuted", "sound on", "sound back", "volume on", "अनम्यूट", "आवाज़ खोलो", "आवाज़ चालू",
           "आवाज खोलो", "आवाज चालू", *(f"{a} {b}" for a in _AWAAZ for b in ("kholo", "khol do", "chalu", "chaalu", "on",
                                                                           "wapas", "lao")))
+# louder / softer: a volume word with a way ("awaaz badhao", "volume kam karo", "sound up"), or a phrase
+# that needs none ("louder", "tez karo", "dheema karo"). Not "dheere" alone: "dheere dheere sunao" is a song
+_VOL = (*_AWAAZ, "volume", "valume", "sound", "आवाज़", "आवाज", "वॉल्यूम", "वाल्यूम")
+_UP = ("up", "badhao", "badha", "badhaao", "badhaiye", "tez", "taiz", "zyada", "jyada", "zada", "increase",
+       "raise", "high", "loud", "more", "upar", "बढ़ाओ", "बढ़ा", "बढ़ाइए", "तेज़", "तेज", "ज़्यादा", "ज्यादा", "ऊपर")
+_DOWN = ("down", "kam", "kum", "ghatao", "ghata", "dheema", "dhima", "dheere", "dhire", "decrease", "reduce", "lower",
+         "low", "less", "neeche", "niche", "halka", "कम", "घटाओ", "घटा", "धीमा", "धीमी", "धीरे", "नीचे")
+LOUDER = ("louder", "turn it up", "turn up", "zor se", "jor se", "tez karo", "tez kar do", "aur tez", "loud karo",
+          "तेज़ करो", "तेज करो", "तेज़ कर दो", "ज़ोर से", "जोर से")
+SOFTER = ("softer", "quieter", "less loud", "turn it down", "turn down", "dheema karo", "dhima karo", "dheere karo",
+          "kam karo", "kam kar do", "halka karo", "धीमा करो", "धीरे करो", "कम करो", "कम कर दो")
+_MUCH = ("bahut", "bohot", "bohat", "much", "lot", "kaafi", "kafi", "बहुत", "काफ़ी", "काफी")
 PLAY = ("play", "put on", "sunao", "suna do", "sunaiye", "chalao", "chala do", "chalaiye", "lagao", "laga do", "bajao",
         "baja do", "i want", "want to hear", "chahiye", "सुनाओ", "चलाओ", "लगाओ", "बजाओ", "सुना दो", "चला दो", "लगा दो",
         "बजा दो", "प्ले")
@@ -287,6 +304,20 @@ REST_FILLER = {"kuch", "koi", "mujhe", "please", "plz", "now", "ab", "abhi", "ya
 
 def _has(text: str, phrases) -> bool:
     return any(re.search(rf"(?:^|\s){re.escape(p)}(?:\s|$)", text) for p in phrases)
+
+
+def _volume(text: str) -> Command | None:
+    """Louder / softer by a step (focus = percent), or a level ("volume 50": focus = it)."""
+    num = re.search(r"(?:^|\s)(\d{1,3})(?:\s*(?:%|percent|pratishat|प्रतिशत))?(?:\s|$)", text)
+    vol = _has(text, _VOL)
+    way = ("louder" if _has(text, LOUDER) or (vol and _has(text, _UP)) else
+           "softer" if _has(text, SOFTER) or (vol and _has(text, _DOWN)) else None)
+    if way:
+        step = int(num.group(1)) if num else VOLUME_STEP * (2 if _has(text, _MUCH) else 1)
+        return Command(way, str(min(step, 100)))
+    if vol and num and int(num.group(1)) <= 100:
+        return Command("volume", num.group(1))
+    return None
 
 
 def _rest(text: str) -> str:
@@ -312,6 +343,9 @@ def parse(command: str) -> Command | None:
         return Command("unmute")  # "unmute and play ghazals" is that wish (playing unmutes)
     if _has(c, MUTE) and not played:  # "awaaz band" holds "band" (stop); "khamoshi sunao" is a wish
         return Command("mute")
+    vol = None if played else _volume(c)  # "awaaz kam karo" holds nothing else; "dheere dheere sunao" is a song
+    if vol:
+        return vol
     if _has(c, DISLIKE):
         return Command("dislike")
     if _has(c, LIKE) and not played:
@@ -340,6 +374,9 @@ def confident(asked: str, cmd: Command) -> bool:
     pause word comes within the first few words; a wish to play has a play word (sunao, lagao, play…) or is
     a few words that all mean something to the player (a genre, mood, programme or singer)."""
     c = canon(asked)
+    if cmd.action in VOLUME:  # "…turn the radio up loud…" in a lyric is not said to us: it comes first
+        said = _volume(" ".join(c.split()[:5]))
+        return said is not None and said.action == cmd.action
     if cmd.action in _SAID_WITH:
         return _has(" ".join(c.split()[:4]), _SAID_WITH[cmd.action]) or (cmd.action == "now" and c.endswith("playing"))
     if _has(c, PLAY):
@@ -480,7 +517,7 @@ def pick_mic() -> str | None:
     from . import listen
 
     want = (settings.voice_mic or settings.listen_mic).strip().lower()
-    names = listen._dshow_audio()
+    names = listen.audio_devices()
     if want:
         return next(iter(listen.preferred(names, want)), None)
     real = [n for n in names if not listen.NOT_A_MIC.search(n)]
@@ -634,11 +671,13 @@ class VoiceControl:
             self._stop.wait(15)
 
     def _read(self, mic: str) -> None:
+        from . import listen
+
         console.log(f"voice control: listening on {mic} — say “{', '.join(w.capitalize() for w in wake_words())}, …”")
         seg = Segmenter(self._on_speech, on_cancel=self._undip, on_window=self._on_window, on_early=self._on_early,
                         window_s=WINDOW_S, hop_s=HOP_S)
         self._proc = subprocess.Popen(
-            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "dshow", "-audio_buffer_size", "50", "-i", f"audio={mic}",
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", *listen.mic_input(mic, low_latency=True),
              "-ac", "1", "-ar", str(RATE), "-f", "s16le", "-"],
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, creationflags=_NOWINDOW)
         out = self._proc.stdout
@@ -1010,8 +1049,29 @@ class VoiceControl:
         if cmd.action == "unmute":
             p.mute(False)
             return "Sound back on"
+        if cmd.action in VOLUME:
+            return self._turn(p, cmd)
         now = p.play(cmd.focus)
         return f"Playing {now.get('wish') or cmd.focus}"
+
+    @staticmethod
+    def _turn(p, cmd: Command) -> str:
+        """Louder / softer / a level, on the player's own volume (it sticks across songs). Already at full,
+        louder turns up the PC's speakers: ffplay's session cannot go past 100%."""
+        if cmd.action == "volume":
+            return f"Volume {p.set_volume(level=max(VOLUME_FLOOR, int(cmd.focus)))['volume']}%"
+        step, before = int(cmd.focus or VOLUME_STEP), int(p.now().get("volume", 100))
+        if cmd.action == "softer":
+            if before <= VOLUME_FLOOR:
+                return "As low as it goes — say “Bharti, mute” for silence"
+            return f"Softer — volume {p.set_volume(change=-min(step, before - VOLUME_FLOOR))['volume']}%"
+        now = p.set_volume(change=step)  # a change unmutes
+        if before < 100:
+            return f"Louder — volume {now['volume']}%"
+        from . import duck
+
+        level = duck.speakers(step / 200)  # the whole PC: half steps
+        return f"Louder — speakers at {round(level * 100)}%" if level is not None else "Already at full volume"
 
     # ------------------------------------------------------------------ feedback
     def _debug(self, kind: str, pcm: np.ndarray, heard: str, nsp: float | None = None, note: str = "") -> None:

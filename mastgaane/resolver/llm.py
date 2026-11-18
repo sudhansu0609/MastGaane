@@ -67,6 +67,10 @@ def _ollama_exe() -> str | None:
     cands = [
         Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Ollama" / "ollama.exe",
         Path("C:/Program Files/Ollama/ollama.exe"),
+        # Mac: the Ollama app, Homebrew on Apple silicon / Intel (an app started from Finder has no Homebrew PATH)
+        Path("/Applications/Ollama.app/Contents/Resources/ollama"),
+        Path("/opt/homebrew/bin/ollama"),
+        Path("/usr/local/bin/ollama"),
     ]
     for c in cands:
         if c.exists():

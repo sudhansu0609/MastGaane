@@ -1,5 +1,6 @@
 import shutil
 import wave
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -73,11 +74,48 @@ def test_only_real_mics_listen(monkeypatch):
 
     names = ["Headset Microphone (Oculus Virtual Audio Device)", "Microphone (Brio 100)",
              "Microphone (Realtek USB Audio)", "Headset (IPL08)", "Stereo Mix (Realtek Audio)"]
-    monkeypatch.setattr(listen, "_dshow_audio", lambda: names)
+    monkeypatch.setattr(listen, "audio_devices", lambda: names)
     monkeypatch.setattr(config.settings, "listen_mic", "")
     assert listen.mics() == ["Microphone (Brio 100)", "Microphone (Realtek USB Audio)"]
     monkeypatch.setattr(config.settings, "listen_mic", "ipl08")  # picked by hand: even the Bluetooth headset
     assert listen.mics() == ["Headset (IPL08)"]
+
+
+AVFOUNDATION = """[AVFoundation indev @ 0x7f9] AVFoundation video devices:
+[AVFoundation indev @ 0x7f9] [0] FaceTime HD Camera
+[AVFoundation indev @ 0x7f9] [1] Capture screen 0
+[AVFoundation indev @ 0x7f9] AVFoundation audio devices:
+[AVFoundation indev @ 0x7f9] [0] MacBook Pro Microphone
+[AVFoundation indev @ 0x7f9] [1] Microsoft Teams Audio
+[AVFoundation indev @ 0x7f9] [2] My AirPods Pro
+[in#0 @ 0x600] Error opening input: Input/output error
+"""
+DSHOW = """[dshow @ 000001] "Integrated Webcam" (video)
+[dshow @ 000001] "Microphone (Brio 100)" (audio)
+[dshow @ 000001]   Alternative name "@device_cm_{33D9A762}"
+[dshow @ 000001] "Headset (IPL08)" (audio)
+"""
+
+
+def test_mics_are_found_on_a_mac_and_on_windows(monkeypatch):
+    from mastgaane import config, listen
+
+    names = listen.parse_devices(AVFOUNDATION, "darwin")
+    assert names == ["MacBook Pro Microphone", "Microsoft Teams Audio", "My AirPods Pro"]
+    assert listen.parse_devices(DSHOW, "win32") == ["Microphone (Brio 100)", "Headset (IPL08)"]
+    assert listen.parse_devices("no devices", "darwin") == []
+
+    monkeypatch.setattr(listen, "audio_devices", lambda: names)
+    monkeypatch.setattr(config.settings, "listen_mic", "")
+    assert listen.mics() == ["MacBook Pro Microphone"]  # no virtual Teams mic, no AirPods in call mode
+
+    monkeypatch.setattr(listen.sys, "platform", "darwin")
+    assert listen.mic_input("MacBook Pro Microphone") == ["-f", "avfoundation", "-i", ":MacBook Pro Microphone"]
+    with pytest.raises(listen.ListenError, match="BlackHole"):
+        listen.record_pc(3, Path("."))
+    monkeypatch.setattr(listen.sys, "platform", "win32")
+    assert listen.mic_input("Microphone (Brio 100)") == ["-f", "dshow", "-i", "audio=Microphone (Brio 100)"]
+    assert "-audio_buffer_size" in listen.mic_input("x", low_latency=True)
 
 
 def test_save_keeps_the_song_and_logs_the_catch(db):

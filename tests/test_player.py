@@ -104,8 +104,10 @@ def test_player_plays_skips_likes_and_stops(db, monkeypatch):
 
 
 def test_mute_keeps_the_show_going_silently(db, monkeypatch):
+    from mastgaane import player
     from mastgaane.player import Player
 
+    monkeypatch.setattr(player, "PER_PROCESS_VOLUME", True)  # Windows: the Keeper holds the level
     fake_ffplay(monkeypatch, 30)
     p = Player(lambda: "http://127.0.0.1:1")
     held = []
@@ -137,6 +139,94 @@ def test_mute_keeps_the_show_going_silently(db, monkeypatch):
     assert wait_for(lambda: p.now()["state"] == "stopped")
 
 
+def test_volume_is_the_owners_knob_and_sticks(db, monkeypatch):
+    """The Keeper holds ffplay at this level, so it is the only volume that lasts (the Volume Mixer
+    slider snaps back): set or moved in percent, kept for the next song and the next start, ducked below."""
+    from mastgaane import player
+    from mastgaane.player import Player
+
+    monkeypatch.setattr(player, "PER_PROCESS_VOLUME", True)
+    fake_ffplay(monkeypatch, 30)
+    p = Player(lambda: "http://127.0.0.1:1")
+    held = []
+    monkeypatch.setattr(p._volume, "hold", lambda pid, level: held.append(level))
+    p.play("ghazals", talk=False)
+    assert wait_for(lambda: p.now()["phase"] == "main")
+    assert p.now()["volume"] == 100 and held[-1] == 1.0
+
+    assert p.set_volume(change=-30)["volume"] == 70 and held[-1] == 0.7
+    p.duck()  # a voice command: the dip, never louder than the owner's level
+    assert held[-1] == 0.2
+    p.duck(None)
+    assert held[-1] == 0.7
+    p.set_volume(level=10)
+    p.duck()
+    assert held[-1] == 0.1  # already under the dip
+    p.duck(None)
+    p.mute()
+    assert p.set_volume(change=+15)["muted"] is False and held[-1] == 0.25  # a change unmutes
+    assert p.set_volume(level=250)["volume"] == 100 and p.set_volume(change=-500)["volume"] == 0
+    p.set_volume(level=40)
+    first = p.now()["title"]
+    p.skip()  # the next song comes in at the same level
+    assert wait_for(lambda: p.now()["phase"] == "main" and p.now()["title"] != first)
+    assert held[-1] == 0.4
+    p.stop()
+    assert wait_for(lambda: p.now()["state"] == "stopped")
+    assert Player(lambda: "http://127.0.0.1:1").now()["volume"] == 40  # remembered across a restart
+
+
+def test_a_mac_restarts_ffplay_at_its_spot_for_a_new_level(db, monkeypatch):
+    """macOS has no per-app volume and ffplay cannot change its own: a new level (volume, mute, a duck)
+    restarts the same file where it was (-ss) at that -volume. The song goes on: no skip, no new pick;
+    a change made while paused waits for the resume."""
+    from mastgaane import player
+    from mastgaane.player import Player
+
+    monkeypatch.setattr(player, "PER_PROCESS_VOLUME", False)
+    real, started = subprocess.Popen, []
+    monkeypatch.setattr(player, "ffplay_path", lambda: "ffplay")
+    monkeypatch.setattr(player.subprocess, "Popen", lambda args, **kw: started.append(args) or real(
+        [sys.executable, "-c", "import time; time.sleep(30)"], **kw))
+
+    def opt(args, name):
+        return args[args.index(name) + 1] if name in args else None
+
+    p = Player(lambda: "http://127.0.0.1:1")
+    monkeypatch.setattr(p._volume, "hold", lambda pid, level: pytest.fail("no per-app volume on a Mac"))
+    p.play("ghazals", talk=False)
+    assert wait_for(lambda: p.now()["phase"] == "main")
+    first, n, src = p.now()["title"], len(started), started[-1][-1]
+    assert opt(started[-1], "-volume") == "100" and opt(started[-1], "-ss") is None
+
+    time.sleep(0.4)
+    p.set_volume(change=-30)
+    assert len(started) == n + 1 and started[-1][-1] == src  # the same file ...
+    assert opt(started[-1], "-volume") == "70" and float(opt(started[-1], "-ss")) >= 0.4  # ... from its spot
+    p.set_volume(level=70)
+    assert len(started) == n + 1  # the same level: left alone
+
+    p.pause()
+    p.set_volume(level=50)
+    assert len(started) == n + 1 and p.now()["state"] == "paused"  # paused: nothing sounds yet
+    p.resume()
+    assert len(started) == n + 2 and opt(started[-1], "-volume") == "50" and p.now()["state"] == "playing"
+    p.duck()
+    assert opt(started[-1], "-volume") == "20"
+    p.duck(None)
+    p.mute()
+    assert opt(started[-1], "-volume") == "0" and len(started) == n + 5  # dip, back up, mute
+    time.sleep(0.3)
+    assert p.now()["title"] == first and p.now()["listened_s"] >= 0.6 and not plays(db, "skip")
+
+    p.skip()  # the next song starts muted, from its start
+    assert wait_for(lambda: p.now()["phase"] == "main" and p.now()["title"] != first)
+    assert opt(started[-1], "-volume") == "0" and opt(started[-1], "-ss") is None
+    assert len(plays(db, "skip")) == 1
+    p.stop()
+    assert wait_for(lambda: p.now()["state"] == "stopped")
+
+
 def test_player_counts_a_full_listen(db, monkeypatch):
     from mastgaane.player import Player
 
@@ -164,6 +254,9 @@ def test_player_api(db, monkeypatch):
     muted = c.post("/api/player/mute").json()
     assert muted["muted"] and muted["summary"].startswith("Muted. ")
     assert c.post("/api/player/unmute").json()["muted"] is False
+    assert c.post("/api/player/volume", json={"change": -30}).json()["volume"] == 70
+    assert c.post("/api/player/volume", json={"level": 55}).json()["volume"] == 55
+    assert c.post("/api/player/volume").json()["volume"] == 55  # no body: just report it
     assert c.post("/api/player/bogus").status_code == 404
     c.post("/api/player/stop")
     assert wait_for(lambda: c.get("/api/player/now").json()["state"] == "stopped")

@@ -10,3 +10,12 @@ def test_an_empty_inherited_variable_does_not_blank_the_env_file(tmp_path, monke
     assert s.gemini_api_key == "abc123" and s.jockey_voice == "hi-IN-SwaraNeural"
     monkeypatch.setenv("GEMINI_API_KEY", "from-env")
     assert Settings(_env_file=env).gemini_api_key == "from-env"  # a real value still wins
+
+
+def test_chrome_is_looked_for_where_each_os_keeps_it(monkeypatch):
+    from mastgaane import config
+
+    monkeypatch.setattr(config.sys, "platform", "darwin")
+    assert config.default_chrome() == "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    monkeypatch.setattr(config.sys, "platform", "win32")
+    assert config.default_chrome().endswith("Chrome/Application/chrome.exe")

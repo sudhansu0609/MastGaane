@@ -1,12 +1,16 @@
-"""MastGaane in the Windows tray: what is playing, pause / mute / next / like / stop, open the app, or quit it.
+"""MastGaane in the Windows tray (the menu bar on a Mac): what is playing, pause / mute / next / like / stop,
+open the app, or quit it.
 
 `mastgaane serve` puts the icon there, also when Dexter starts the server with no window. It drives
 the same PC player as Dexter and /api/player/* (music playing in a browser tab on /fm is that tab's
-own). Left click = play / pause; right click = the menu; hovering shows what is on.
+own). Left click = play / pause; right click = the menu; hovering shows what is on. On a Mac the
+icon must own the main thread (AppKit), so `serve` runs the web server beside it (`run_here`).
 """
 from __future__ import annotations
 
+import sys
 import threading
+import time
 import webbrowser
 from typing import Callable
 
@@ -160,15 +164,42 @@ class Tray:
             M("Quit MastGaane", self._quit),
         )
         self._icon = pystray.Icon("mastgaane", icon_image(), "MastGaane", menu)
-        threading.Thread(target=self._run, daemon=True, name="mastgaane-tray").start()
+        if not self.on_main_thread:
+            threading.Thread(target=self._run, daemon=True, name="mastgaane-tray").start()
         threading.Thread(target=self._watch, daemon=True, name="mastgaane-tray-watch").start()
         return True
 
+    #: macOS draws the menu-bar icon only from the main thread: `serve` calls run_here() there
+    on_main_thread = sys.platform == "darwin"
+
+    def run_here(self):
+        """The icon's loop on this (the main) thread, until Quit or stop()."""
+        self._run()
+
     def _run(self):
+        icon = self._icon
+        if icon is None:
+            return
         try:
-            self._icon.run()
+            icon.run(setup=self._setup)
         except Exception as e:
             console.log(f"[yellow]tray: {e}[/]")
+
+    def _setup(self, icon):
+        icon.visible = True
+        if sys.platform != "darwin":
+            return
+        # pystray's Ctrl+C on a Mac ends the app at once (NSApp terminate), leaving ffplay playing on: once
+        # its loop has set that handler, Ctrl+C becomes Quit — the music stops, the server shuts down
+        time.sleep(0.5)
+        try:
+            import signal
+
+            import PyObjCTools.MachSignals as mach
+
+            mach.signal(signal.SIGINT, lambda *a: self._quit())
+        except Exception as e:
+            console.log(f"[yellow]tray: Ctrl+C stays pystray's ({e})[/]")
 
     def _watch(self):
         while not self._done.wait(REFRESH_S):
